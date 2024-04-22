@@ -1,0 +1,84 @@
+{  
+   "_NB": "If option is specified in command line, session_name and time_first_frame_UTC will come from this file. We can processed multiple session",
+   "session_info": {
+      "session_name": "",
+      "root": "",
+      "optional_place": "",
+      "device": "",
+      "_NB": "flag that deletes all the processed files for the current session (frames, gps processed files, bathy files etc)",
+      "delete_processed_session": true 
+   },
+   
+   "dcim": {
+      "exiftool_config_path": "./exiftool_roll_pitch_config_file.config",
+      "frames_per_second": "2997/1000",
+      "leap_sec": "18",
+      "_NB": "insert the date and time following the format YYYY:MM:DD HH:MM:SS.000",
+      "_NB": "insert the time in UTC+0 format",
+      "time_first_frame_UTC": "2024:04:12 02:36:59.99"
+   },
+
+   "path": {
+      "mission_id": "mycarto",
+      "log": "./input/ex1.log",
+      "outdir": "./mydir/",
+      "destpath": "autofilled"
+   },
+
+   "gps": {
+      "ppk_config_path": "ppk_config/",
+      "ppk_config_name": "ppk_config_file",
+      "_NB": "If this flag is true, use RGP base instead of emlid reach",
+      "force_use_rgp": false,
+      "rgp_station": "sntl",
+      "use_llh_position": false,
+      "gpsbaseposition_mean_on_llh": true,
+      "_NB": "Useful UTM zones -> Europa=37",
+      "_NB": "Useful UTM zones -> Aldabra=38",
+      "_NB": "Useful UTM zones -> Madagascar=38",
+      "_NB": "Useful UTM zones -> Mauritius=40",
+      "_NB": "Useful UTM zones -> Réunion=40",
+      "utm_zone": "37",
+      "utm_south": true,
+      "utm_ellips": "WGS84",
+      "filt_rtkfix": false,
+      "filt_automode": false,
+      "filt_waypoint": true,
+      "filt_remove_after_timeUS": 4523656144,
+      "_NB": "Exclude specific interval",
+      "filt_exclude_specific_timeUS": []
+   },
+   
+   "parse": {
+      "gpskey": "GPS2",
+      "attkey": "ATT",
+      "dpthkey": "DPTH",
+      "optkey": ""
+   },
+   
+   "bathy": {
+      "offset_ant_beam": {
+         "x": 0.15,
+         "y": 0.0,
+         "z": -0.45
+      },
+      "dpth_coeff": 1.04,
+      "max_angle": 20.0,
+      "_NB": "min and max depth for the current zone, can filter outliers data -> min=0.20",
+      "dpth_range": {
+         "min": 0.4,
+         "max": 60.0
+      },
+      "dpth_win_s": 1,
+      "dpth_valid_prop": 0.5,
+      "use_geoid": false,
+      "geoid_path": "./geoid/server/geoid_reunion_RAR07.txt"
+   },
+   "mesh": {
+      "spacing_m": "autofilled",
+      "_NB": "method can be : linear, cubic, nearest",
+      "method": "linear",
+      "_NB": "3Dalgo can be : ballpivot, alphashape",
+      "3Dalgo":"ballpivot"
+   }
+}

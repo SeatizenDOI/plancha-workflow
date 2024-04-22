@@ -1,0 +1,8 @@
+# exclude pycache folder
+__pycache__/
+autofilledprog_config.json
+postprocess_YYYMMDD/autofilledprog_config.json
+postprocess_YYYMMDD/__pycache__/
+.vscode
+.stfolder
+error.log
