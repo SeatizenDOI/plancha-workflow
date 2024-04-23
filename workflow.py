@@ -28,6 +28,7 @@ def parse_option():
     return parser.parse_args()
 
 def main(opt): 
+    print_plancha_header()
 
     # Open json file with config of the session
     with open('./plancha_config/plancha_config.json') as json_file:
@@ -124,11 +125,11 @@ def main(opt):
                 clear_processed_session(frames_path, bathy_path, meta_path, gb_path, gd_path)
 
             ### write metadata on session_info file
-            write_session_info(session_name, SESSION_INFO_PATH, frames_per_second, time_first_frame, leap_sec)
+            write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, leap_sec)
 
             ### Split videos into frames
             if not opt.no_split:
-                split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, session_name, METADATA_PATH)
+                split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, session_name)
             
             ### We just want to split videos so we continue
             if opt.only_split: continue

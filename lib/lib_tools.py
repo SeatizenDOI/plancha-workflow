@@ -1,12 +1,8 @@
 import os
-import shutil
-import pycountry
 import subprocess
 import pandas as pd
-from tqdm import tqdm
 from pathlib import Path
 from datetime import datetime
-from geopy.geocoders import Nominatim
 
 def print_plancha_header():
     print("""
@@ -63,123 +59,6 @@ def clear_processed_session(frames_path, bathy_path, metadata_path, gps_base_pat
                 os.rmdir(item_path)
             elif not(item.endswith(".zip") or item.endswith(".gpx")):
                 os.remove(item_path)
-
-
-def create_new_session_folder(ORIGIN_ROOT, NEW_DEST_ROOT, SESSION_NAME, optional_place, session_name_device, flag_country_code):  
-
-    # old path
-    SESSION_PATH = ORIGIN_ROOT + SESSION_NAME
-    VIDEOS_PATH = SESSION_PATH + "/DCIM/videos"
-    IMAGES_PATH = SESSION_PATH + "/DCIM/images"
-    GPS_PATH = SESSION_PATH + "/GPS"
-    SENSORS_PATH = SESSION_PATH + "/SENSORS"
-    
-    if "session_" in SESSION_NAME :
-        OLD_SESSION_NAME = SESSION_NAME
-        #1.GET DATE IN STANDARD FORMAT
-        # Get the session date from the session name
-        session_date = SESSION_NAME.split("session_")[1][0:10]
-        # Convert to date object
-        session_date2 = datetime.strptime(session_date, "%Y_%m_%d")
-        # Convert to required standard format
-        session_name_date = session_date2.strftime("%Y%m%d")
-        #2.GET COUNTRY CODE ISO ALPHA 3
-        session_name_place = flag_country_code + optional_place
-        # if we have more session in the same day, retrieve the session number
-        session_nb = SESSION_NAME.split("_")[-1]
-        SESSION_NAME = session_name_date + "_" + session_name_place + "_" + session_name_device
-        if session_nb.isnumeric() :
-            SESSION_NAME = session_name_date + "_" + session_name_place + "_" + session_name_device + "_" + session_nb
-
-    # # Create new session folder
-    NEW_SESSION_PATH = os.path.join(NEW_DEST_ROOT, SESSION_NAME)
-    print("\n-- We are creating the new session folder : ", NEW_SESSION_PATH)
-    if (not(os.path.exists(NEW_SESSION_PATH))):
-        os.makedirs(NEW_SESSION_PATH)
-
-    # Create new parent subfodlers or copy old files
-    NEW_DCIM_PATH = os.path.join(NEW_SESSION_PATH, "DCIM")
-    print("\t* Creating " + NEW_DCIM_PATH)
-    if (not(os.path.exists(NEW_DCIM_PATH))):
-        os.makedirs(NEW_DCIM_PATH)
-
-    # Copy all the videos in the new session folder
-    if os.path.exists(VIDEOS_PATH):
-        print("\t* Copying video from " + VIDEOS_PATH)
-        files = os.listdir(VIDEOS_PATH)
-        for item in tqdm(files):
-            old_video_path = os.path.join(VIDEOS_PATH, item)
-            if os.path.isfile(old_video_path):
-                new_video_path = os.path.join(NEW_DCIM_PATH, item)
-                shutil.copy(old_video_path, new_video_path)
-    if os.path.exists(IMAGES_PATH):
-        print("\t* Copying images from " + IMAGES_PATH)
-        shutil.copytree(IMAGES_PATH, NEW_DCIM_PATH, dirs_exist_ok=True)
-    
-    # GPS
-    NEW_GPS_PATH = os.path.join(NEW_SESSION_PATH, "GPS")
-    print("\t* Creating " + NEW_GPS_PATH)
-    if os.path.exists(GPS_PATH):
-        shutil.copytree(GPS_PATH, NEW_GPS_PATH)
-        # for item in tqdm(os.listdir(GPS_PATH)):
-        #     if item.endswith(".zip"):
-        #         old_gps_path = os.path.join(GPS_PATH, item)
-        #         new_gps_path = os.path.join(NEW_GPS_PATH, item)
-        #         shutil.copy(old_gps_path, new_gps_path)
-    else:
-        os.makedirs(NEW_GPS_PATH)
-
-
-    # SENSORS
-    NEW_SENSORS_PATH = os.path.join(NEW_SESSION_PATH, "SENSORS")
-    print("\t* Creating " + NEW_SENSORS_PATH)
-    if os.path.exists(SENSORS_PATH):
-        shutil.copytree(SENSORS_PATH, NEW_SENSORS_PATH)
-    else :
-        os.makedirs(NEW_SENSORS_PATH)
-
-    # METADATA
-    NEW_METADATA_PATH = os.path.join(NEW_SESSION_PATH, "METADATA")
-    print("\t* Creating " + NEW_METADATA_PATH)
-    if not(os.path.exists(NEW_METADATA_PATH)):
-        os.makedirs(NEW_METADATA_PATH)
-
-    # PROCESSED_DATA
-    NEW_PROCESSED_PATH = os.path.join(NEW_SESSION_PATH, "PROCESSED_DATA")
-    print("\t* Creating " + NEW_PROCESSED_PATH)
-    if (not(os.path.exists(NEW_PROCESSED_PATH))):
-        os.makedirs(NEW_PROCESSED_PATH)
-    folder_to_create = ["BATHY", "FRAMES"] # ["BATHY", "FRAMES", "IA", "PHOTOGRAMMETRY"]
-    for folder in folder_to_create:
-        path = os.path.join(NEW_PROCESSED_PATH, folder)
-        if (not(os.path.exists(path))):
-            os.makedirs(path)
-
-    print("   Deleting: OK", end="\n\n")
-    os.system('spd-say "The copy of the files is done"')
-
-# !FIXME Useless fonction
-def get_alpha_3_code_from_latlon(lat, lon) :
-
-    # 1.get country code alpha_2 from https://nominatim.openstreetmap.org/ui/search.html 
-    # (better than pycountry that returns Comoros from a position in Aldabra->Seychelles)
-    geolocator = Nominatim(user_agent="foo_bar")
-    coordinates = (lat, lon)
-    location = geolocator.reverse(coordinates, exactly_one=True)
-    country = location.address.split(',')[-1]  # type: ignore -- suppress error from pylance
-    country_code_alpha_2 = location.raw["address"]["country_code"] # type: ignore -- suppress error from pylance
-
-    #2.get country name from country code alpha_2
-    country = pycountry.countries.get(alpha_2=country_code_alpha_2)
-    country_name = country.name
-
-    #3.get alpha_3 code from country name
-    #dict of country alpha3 codes
-    countries_code_alpha_3 = {}
-    for country in pycountry.countries:
-        countries_code_alpha_3[country.name] = country.alpha_3
-    country_code_alpha_3 = countries_code_alpha_3[country_name]
-    return country_code_alpha_3
 
 def replace_comma_by_dot(file_path):
     with open(file_path, 'r+') as f:

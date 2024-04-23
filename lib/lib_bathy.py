@@ -5,34 +5,32 @@ Created on Tue Mar 15 12:17:30 2022
 @author: mjulien
 """
 import os
-import platform
-import shutil
-from sqlite3 import Time
-import pandas as pd
 import csv
 import json
-import numpy as npFV
-import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d, LinearNDInterpolator
-from scipy.interpolate import griddata
-from scipy.spatial import KDTree
-import transforms3d as t3d 
 import pyproj 
-import datetime as dt
-import numpy as np
+import shutil 
+import platform
 import subprocess
+import numpy as np
+import pandas as pd
+import datetime as dt
 import geopandas as gpd
+import transforms3d as t3d 
+from functools import partial
+import matplotlib.pyplot as plt
 from shapely.geometry import Point
+
+from scipy.spatial import KDTree
+from scipy.interpolate import interp1d, LinearNDInterpolator, griddata
+
 from geocube.api.core import make_geocube
 from geocube.rasterize import rasterize_points_griddata
-from functools import partial
 
 from lib.lib_folium_maps import *
 from lib.lib_open3d_model import *
 
-def clean_nullbyte_raw_log(log_path,cfg_prog):
+def clean_nullbyte_raw_log(log_path):
     # time func execution
-    texec = dt.datetime.now()
     shutil.copy(log_path,log_path+'.bkp')
     with open(log_path, 'rb') as myfile:
         data = myfile.read()
@@ -242,18 +240,6 @@ def build_dataframe_gps(dfdict,cfg_prog, TXT_PATH):
         if cfg_prog['gps']["use_llh_position"] == False:
             print('func: filter data according to RTK fix status (=6 in autopilot log)')
             df = df[df.Status == 6]
-    
-    # TODO doesn't work Filter data according to mode auto enabled ?  
-    if cfg_gps['filt_automode'] == True :
-        print('func: filter data according to mode (AUTO only)')
-        t_start = 0
-        for i in range(0, len(dfdict['MODE'])):
-            if dfdict['MODE'].Mode.values[i].strip() == 'Auto':
-                t_start = float(dfdict['MODE'].TimeUS.values[i])
-        if (t_start != 0):
-            df = df[df.TimeUS > t_start]
-        else:
-            print('func: error, no valid tstart. filter cancelled ...')
 
     # Filter data according to waypoints enabled ?
     if cfg_gps['filt_waypoint'] == True :
@@ -908,74 +894,3 @@ def bathy_preproc_to_txt(bathy_preproc_path) :
     # write the CSV file for Roll, Pitch
     bathy_preproc_df.to_csv(csv_path, index = False)
     return csv_path
-
-#%% CAMERA FOOTPRINTS
-# !FIXME Not Use 
-def run_photog_footprint_calculator(df, cfg_prog):
-    # time func execution
-    texec = dt.datetime.now()
-
-    print('\nComputing camera footprints and area coverage...')
-    overlap_poly, points, counts = footprint_calculator2(df, cfg_prog)
-    print('done ...')
-    
-    print('\ninfo: Saving computed data to csv file')
-    
-    # create folder
-    cfg_prog['path']['destpath'] = cfg_prog['path']['outdir']+cfg_prog['path']['mission_id']+'/'
-    if not os.path.exists(cfg_prog['path']['destpath']):
-        os.makedirs(cfg_prog['path']['destpath'])
-    
-    # set current path vars
-    filepath = cfg_prog['path']['destpath']
-    tags = 'footprint_poly'
-    # dump prog config
-    with open(filepath+'prog_config.json', 'w') as fp:
-        json.dump(cfg_prog, fp,indent=3)
-    
-    # dump postprocessed data
-    df_poly = pd.DataFrame(overlap_poly)
-    df_poly.to_csv(filepath+'bathy_photog_'+tags+'.csv',sep=',',index=False)
-    
-    # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
-    
-    return overlap_poly, points, counts 
-
-# !FIXME Not Use 
-def run_photog_coverage_analysis(overlap_poly, df, cfg_prog):
-    # time func execution
-    texec = dt.datetime.now()
-
-    print('\nComputing photogrammetry indexes ...')
-    df_photog = photog_index(overlap_poly, df, cfg_prog)
-    print('done ...')
-    
-    print('\ninfo: Saving computed data to csv file')
-    
-    # create folder
-    cfg_prog['path']['destpath'] = cfg_prog['path']['outdir']+cfg_prog['path']['mission_id']+'/'
-    if not os.path.exists(cfg_prog['path']['destpath']):
-        os.makedirs(cfg_prog['path']['destpath'])
-    
-    # set current path vars
-    filepath = cfg_prog['path']['destpath']
-    tags = 'fov{0}x{1}'.format(cfg_prog['photog']['fov_x'],
-                               cfg_prog['photog']['fov_y'])
-    # dump prog config
-    with open(filepath+'prog_config.json', 'w') as fp:
-        json.dump(cfg_prog, fp,indent=3)
-    
-    # dump postprocessed data
-    df_photog.to_csv(filepath+'bathy_photog_'+tags+'.csv',sep=',',index=False)
-    
-    # dump associated metadata
-    metadata = cfg_prog
-    metadata['creation'] = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(filepath+'bathy_photog_'+tags+'.csv.metadata', 'w') as fp:
-        json.dump(cfg_prog, fp,indent=3)
-    
-    # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
-    
-    return df_photog

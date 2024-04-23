@@ -1,12 +1,8 @@
-from matplotlib import legend
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter
-import matplotlib.patches as mpatches
-import numpy as np
 import os
-
-from lib.lib_tools import llh_to_txt
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.ticker import FormatStrFormatter
 
 def plot_gps_quality(gps_device_path, csv_llh, session_info, file_name):
     figname = gps_device_path + "/" + file_name

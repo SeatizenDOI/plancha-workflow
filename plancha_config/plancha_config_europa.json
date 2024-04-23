@@ -42,9 +42,7 @@
       "utm_south": true,
       "utm_ellips": "WGS84",
       "filt_rtkfix": false,
-      "filt_automode": false,
       "filt_waypoint": true,
-      "filt_remove_after_timeUS": 4523656144,
       "_NB": "Exclude specific interval",
       "filt_exclude_specific_timeUS": []
    },

@@ -259,8 +259,6 @@ def ppk(SESSION_NAME, GPS_BASE_PATH, GPS_DEVICE_PATH, PPK_CONFIG_PATH, ppk_cfgs,
     os.system(rtk_cmd)
 
     llh_path = pos_to_llh(pos_path)
-    # FINISH MESSAGE
-    os.system('spd-say "ppk is done"')
     return llh_path
 
 def compute_gps(SESSION_INFO_PATH, GPS_DEVICE_PATH, GPS_BASE_PATH, SESSION_NAME, time_first_frame, FRAMES_PATH, SENSOR_PATH, rgp_station, delta_time, PPK_CONFIG_PATH, ppk_cfgs, flag_rtkfix, gpsbaseposition_mean_on_llh, cfg_prog):

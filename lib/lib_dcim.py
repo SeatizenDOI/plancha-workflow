@@ -1,59 +1,50 @@
 import os
-import pandas as pd
-import numpy as np
-from natsort import natsorted
 import ffmpeg
+import exiftool
+import numpy as np
+import pandas as pd
+from time import time 
+from pathlib import Path
 
 from lib.lib_bathy import bathy_preproc_to_txt
 
-def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME, METADATA_PATH):
+
+def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME):
     count_video = 0
-    flag_metadata_video = 0
-    initial_cwd = os.getcwd() # Store initial path before apply os.chdir
-    if not os.path.isdir(VIDEOS_PATH) :
+
+    VIDEOS_PATH = Path(VIDEOS_PATH)
+    FRAMES_PATH = Path(FRAMES_PATH)
+
+    if not Path.exists(VIDEOS_PATH) or not VIDEOS_PATH.is_dir() :
         print("The following path does not exist : ", VIDEOS_PATH)
 
-    
     # if we do not already have splitted the video
-    if os.path.isdir(VIDEOS_PATH) and (not os.path.exists(FRAMES_PATH) or len(os.listdir(FRAMES_PATH)) == 0):
+    if not Path.exists(FRAMES_PATH) or len(list(FRAMES_PATH.iterdir())) == 0:
         print("\n-- 1/6 : SPLITTING VIDEOS INTO FRAMES:")
-        # change wd in current directory
-        os.chdir(VIDEOS_PATH)
-        # if the FRAMES directory still does not exist, create it
-        if not os.path.exists(FRAMES_PATH):
-            os.makedirs(FRAMES_PATH)
+
+        # Create folder
+        FRAMES_PATH.mkdir(exist_ok=True, parents=True)
+
+        t_start = time()
         # for each file in the videos folder
-        for file in sorted(os.listdir(VIDEOS_PATH)):
-            if file.endswith(".MP4") or file.endswith(".mp4"):
+        for file in sorted(list(VIDEOS_PATH.iterdir())):
+            if file.suffix.lower() == ".mp4":
                 # increase the count video in order to differentiate between different videos of same session
                 count_video += 1
-                print("\t* We are treating the following file : ", file)
-                # split video in frames
-                # -i = input video
-                # -r = rate
-                # -q = scale output option, normal range for JPEG is 2-31 with 31 being the worst quality.
-                # -threads = 0 -> optimal number of cores
-                #split_ffmpeg =  "ffmpeg -i " + file + " -r " + frames_per_second + " " + FRAMES_PATH + "/" + SESSION_NAME + "_" + str(count_video) + "_" + "%3d.jpeg"
-                #split_ffmpeg =  "ffmpeg -i " + file + " -r " + frames_per_second + " -threads 0 -loglevel quiet " + "-qmin 1 -qscale:v 1 " + FRAMES_PATH + "/" + SESSION_NAME + "_" + str(count_video) + "_" + "%3d.jpeg"
-                #split_ffmpeg =  "ffmpeg -i " + file + " -r " + frames_per_second + " " + FRAMES_PATH + "/" + SESSION_NAME + "_" + str(count_video) + "_" + "%4d.jpeg"
-                
-                # DEBUG MJ
-                split_ffmpeg =  "ffmpeg -i " + file + " -filter:v fps=" + frames_per_second + " -loglevel quiet " + "-qmin 1 -qscale:v 1 " + FRAMES_PATH + "/" + SESSION_NAME + "_" + str(count_video) + "_" + "%3d.jpeg"
-                os.system(split_ffmpeg)
+                print("\t* We are treating the following file : ", file.name)
 
-                # si on a pas encore écrit les metadonnées de la vidéo, faisons le
-                if flag_metadata_video == 0 :
-                    flag_metadata_video = 1
-                    # write video's metadata to csv
-                    CSV_EXIFTOOL_VIDEO =  METADATA_PATH + "/csv_exiftool_video.csv"
-                    export_video_metadata =  "exiftool -csv  " + file + " > " + CSV_EXIFTOOL_VIDEO
-                    os.system(export_video_metadata)
+                # Define the ffmpeg command
+                output_pattern = Path(FRAMES_PATH, f"{SESSION_NAME}_{str(count_video)}_%03d.jpeg")  # Output pattern for the frames
+                (
+                    ffmpeg.input(str(file))
+                    .output(str(output_pattern), vf=f'fps={frames_per_second}', qmin=1, q='1', loglevel='quiet') # Set output pattern, frame rate filter, quality parameters, and logging level
+                    .run()  # Run the ffmpeg command
+                )           
+        print(f"Cumulative time: {time() - t_start} sec")
+        print("End of splitting videos")
 
-    # FINISH MESSAGE
-    os.chdir(initial_cwd)
-    os.system('spd-say "The splitting of the video is done"')
 
-def write_session_info(SESSION_NAME, SESSION_INFO_PATH, frames_per_second, time_first_frame, leap_sec):
+def write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, leap_sec):
     print("\n-- Writing session info in csv file\n")
     session_info = pd.DataFrame({'frames_per_second': [frames_per_second], 'time_first_frame': [time_first_frame], 'leap_sec': [leap_sec]})
     # sort metadata columns by name
@@ -250,6 +241,3 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
     csv_exiftool_frames = csv_exiftool_frames.sort_index(axis=1)
     # save filtered frame csv, after import metadata
     csv_exiftool_frames.to_csv(CSV_EXIFTOOL_FRAMES, index=False)
-
-    # end message
-    os.system('spd-say "geotagging frames is done"')

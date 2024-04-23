@@ -8,8 +8,8 @@ import numpy as np
 import open3d as o3d
 
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 from matplotlib import cm
+import matplotlib.pyplot as plt
 
 class MplColorHelper:
 
@@ -28,10 +28,6 @@ def build_o3d_pointcloud(xyz,center=True):
     if center == True:
         xyz[:,0] = xyz[:,0] - np.min(xyz[:,0])
         xyz[:,1] = xyz[:,1] - np.min(xyz[:,1])
-    # if center_z == True:
-    #     xyz[:,2] = xyz[:,2] - np.min(xyz[:,2])
-    # else:
-    #     xyz[:,2] = xyz[:,2]
         
     # build point cloud from xyz matrix
     pcd = o3d.geometry.PointCloud()
@@ -82,8 +78,6 @@ def build_o3d_trimesh(pcd,avgdist,method='ballpivot'):
     colhelper = MplColorHelper('Spectral', np.min(xyz[:,2]), np.max(xyz[:,2]))
     # assign color to mesh
     meshcol = colhelper.get_rgb(xyz[:,2])[:,[0,1,2]]
-    # for i in range(len(xyz[:,2])):
-    #     meshcol[i] = colhelper.get_rgb(xyz[i,2])
     mesh.vertex_colors = o3d.utility.Vector3dVector(meshcol)
 
     return mesh

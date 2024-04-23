@@ -1,8 +1,8 @@
 {  
    "_NB": "If option is specified in command line, session_name and time_first_frame_UTC will come from this file. We can processed multiple session",
    "session_info": {
-      "session_name": "20240412_REU-TESSIER_ASV-1_01",
-      "root": "/media/bioeos/F/202404_plancha_session/",
+      "session_name": "20231204_REU-TROUDEAU_ASV-1_01",
+      "root": "/home/bioeos/Documents/Bioeos/plancha-session/",
       "optional_place": "",
       "device": "",
       "_NB": "flag that deletes all the processed files for the current session (frames, gps processed files, bathy files etc)",
@@ -42,7 +42,6 @@
       "utm_south": true,
       "utm_ellips": "WGS84",
       "filt_rtkfix": true,
-      "filt_automode": false,
       "filt_waypoint": true,
       "_NB": "Exclude specific interval",
       "filt_exclude_specific_timeUS": []
