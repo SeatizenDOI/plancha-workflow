@@ -33,7 +33,6 @@ def build_o3d_pointcloud(xyz,center=True):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(xyz)
     print(pcd)
-    print(np.asarray(pcd.points))
     # calc some data set characteristics
     print('Estimating point cloud normals')
     pcd.estimate_normals()

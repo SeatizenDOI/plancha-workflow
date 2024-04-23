@@ -1,9 +1,10 @@
 import os
+import json
 import ffmpeg
 import exiftool
 import numpy as np
 import pandas as pd
-from time import time 
+import datetime as dt
 from pathlib import Path
 
 from lib.lib_bathy import bathy_preproc_to_txt
@@ -17,31 +18,37 @@ def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME):
 
     if not Path.exists(VIDEOS_PATH) or not VIDEOS_PATH.is_dir() :
         print("The following path does not exist : ", VIDEOS_PATH)
+        return
 
     # if we do not already have splitted the video
-    if not Path.exists(FRAMES_PATH) or len(list(FRAMES_PATH.iterdir())) == 0:
-        print("\n-- 1/6 : SPLITTING VIDEOS INTO FRAMES:")
+    if Path.exists(FRAMES_PATH) and len(list(FRAMES_PATH.iterdir())) > 0:
+        print("Videos already split in frames")
+        return
+    
+    print("\n-- 1/6 : SPLITTING VIDEOS INTO FRAMES:")
 
-        # Create folder
-        FRAMES_PATH.mkdir(exist_ok=True, parents=True)
+    # Create folder
+    FRAMES_PATH.mkdir(exist_ok=True, parents=True)
 
-        t_start = time()
-        # for each file in the videos folder
-        for file in sorted(list(VIDEOS_PATH.iterdir())):
-            if file.suffix.lower() == ".mp4":
-                # increase the count video in order to differentiate between different videos of same session
-                count_video += 1
-                print("\t* We are treating the following file : ", file.name)
+    texec = dt.datetime.now()
+    # for each file in the videos folder
+    for file in sorted(list(VIDEOS_PATH.iterdir())):
+        if file.suffix.lower() != ".mp4": continue
 
-                # Define the ffmpeg command
-                output_pattern = Path(FRAMES_PATH, f"{SESSION_NAME}_{str(count_video)}_%03d.jpeg")  # Output pattern for the frames
-                (
-                    ffmpeg.input(str(file))
-                    .output(str(output_pattern), vf=f'fps={frames_per_second}', qmin=1, q='1', loglevel='quiet') # Set output pattern, frame rate filter, quality parameters, and logging level
-                    .run()  # Run the ffmpeg command
-                )           
-        print(f"Cumulative time: {time() - t_start} sec")
-        print("End of splitting videos")
+        # increase the count video in order to differentiate between different videos of same session
+        count_video += 1
+        print("\t* We are treating the following file : ", file.name)
+
+        # Define the ffmpeg command
+        output_pattern = Path(FRAMES_PATH, f"{SESSION_NAME}_{str(count_video)}_%03d.jpeg")  # Output pattern for the frames
+        (
+            ffmpeg.input(str(file))
+            .output(str(output_pattern), vf=f'fps={frames_per_second}', qmin=1, q='1', loglevel='quiet') # Set output pattern, frame rate filter, quality parameters, and logging level
+            .run()  # Run the ffmpeg command
+        )
+
+    print(f"\nfunc: exec time --> {dt.datetime.now() - texec} sec")
+    print("End of splitting videos\n")
 
 
 def write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, leap_sec):
@@ -60,25 +67,34 @@ def write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, l
 def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, BATHY_PATH, METADATA_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH):
 
     print("\n-- 3B of 6 : EXPORT VIDEO & FRAME METADATA TO CSV\n")
-    CSV_EXIFTOOL_FRAMES = METADATA_PATH + "/metadata.csv"
-    CSV_EXIFTOOL_VIDEO =  METADATA_PATH + "/csv_exiftool_video.csv"
-    export_frame_metadata =  "exiftool -csv -fileorder filename " + FRAMES_PATH + " > " + CSV_EXIFTOOL_FRAMES
-    os.system(export_frame_metadata)
 
-    # import frames metadata
-    csv_exiftool_frames = pd.read_csv(CSV_EXIFTOOL_FRAMES)
-    # import video metadata
-    if os.path.isdir(VIDEOS_PATH) :
-        # for each file in the videos folder
-        for file in os.listdir(VIDEOS_PATH):
-            if file.endswith(".MP4") or file.endswith(".mp4"):    
-                CSV_EXIFTOOL_VIDEO =  METADATA_PATH + "/csv_exiftool_video.csv"
-                export_video_metadata =  "exiftool -csv  " + VIDEOS_PATH + "/" + file + " > " + CSV_EXIFTOOL_VIDEO
-                os.system(export_video_metadata)
-                break
-    csv_exiftool_video = pd.read_csv(CSV_EXIFTOOL_VIDEO)
+    # Get metadata of frames
+    with exiftool.ExifTool(common_args=[]) as et:
+        json_frames_metadata = et.execute(*[f"-j", "-fileorder", "filename", FRAMES_PATH])
+    csv_exiftool_frames = pd.DataFrame.from_dict(json.loads(json_frames_metadata))
+
+    # Get metadata of one video
+    VIDEOS_PATH = Path(VIDEOS_PATH)
+    if not Path.exists(VIDEOS_PATH) or not VIDEOS_PATH.is_dir() :
+        print("The following path does not exist : ", VIDEOS_PATH)
+        return
+    
+    file_path = None
+    for file in VIDEOS_PATH.iterdir():
+        if file.suffix.lower() == ".mp4": 
+            file_path = file 
+            break   
+
+    if file_path == None:
+        print(f"No video file found for extracting metadata")
+    
+    with exiftool.ExifToolHelper(common_args=[]) as et:
+        metadata = et.get_metadata(file_path)
+
+    csv_exiftool_video = pd.DataFrame(metadata)
+
     # filter video metadata
-    useful_video_metadata_names =  ['LensSerialNumber', 'CameraSerialNumber', 'Model', 'AutoRotation', 'DigitalZoom', 'ProTune', 'WhiteBalance', 'Sharpness', 'ColorMode', 'MaximumShutterAngle', 'AutoISOMax', 'AutoISOMin', 'ExposureCompensation', 'Rate', 'FieldOfView', 'ElectronicImageStabilization', 'ImageWidth', 'ImageHeight', 'SourceImageHeight', 'XResolution', 'VideoFrameRate', 'ImageSize',	'Megapixels', 'AvgBitrate']
+    useful_video_metadata_names =  ['LensSerialNumber', 'CameraSerialNumber', 'Model', 'AutoRotation', 'DigitalZoom', 'ProTune', 'WhiteBalance', 'Sharpness', 'ColorMode', 'MaximumShutterAngle', 'AutoISOMax', 'AutoISOMin', 'ExposureCompensation', 'Rate', 'FieldOfView', 'ElectronicImageStabilization', 'ImageWidth', 'ImageHeight', 'SourceImageHeight', 'XResolution', 'VideoFrameRate', 'ImageSize', 'Megapixels', 'AvgBitrate']
     video_col_names = csv_exiftool_video.columns
     video_intersection_list = list(set(video_col_names) & set(useful_video_metadata_names))
     csv_exiftool_video = csv_exiftool_video[video_intersection_list]
@@ -95,9 +111,7 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
     session_info.dropna(how='all', axis=1, inplace=True)
     # save session_info df
     session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
-    # then remove csv_exiftool_video csv
-    os.remove(CSV_EXIFTOOL_VIDEO)
-
+ 
     print("\n-- 4 of 6 : ADD DATE AND TIME TO CSV METADATA\n")
 
     # convert "time_first_frame" to "time_first_frame_np" in order to create np vector of DateTime
@@ -105,7 +119,8 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
     time_first_frame_np = time_first_frame_np.replace(":", "-", 2)
     # define time first frame in np format, step and nb of samples
     start = np.datetime64(time_first_frame_np, 'ns')
-    fps1, fps2 = [float(i) for i in frames_per_second.split('/')] if "/" in frames_per_second else (float(frames_per_second), 1) # Magik
+    # Handle fraction in frames_seconds => 2997/1000 : 2997, 1000 or 3 : 3.0, 1
+    fps1, fps2 = [float(i) for i in frames_per_second.split('/')] if "/" in frames_per_second else (float(frames_per_second), 1.0)
     step = np.timedelta64(int(1/float(fps1/fps2)*1e9), "ns")
     nb_of_frames = csv_exiftool_frames.shape[0] 
     # create vector of dates and times
@@ -190,8 +205,6 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
         csv_exiftool_frames['XMP:GPSPitch'] = np.interp(csv_exiftool_frames['datetime_unix'], csv_bathy_preproc['datetime_unix'], csv_bathy_preproc['GPSPitch'])
         csv_exiftool_frames['XMP:GPSTrack'] = np.interp(csv_exiftool_frames['datetime_unix'], csv_bathy_preproc['datetime_unix'], csv_bathy_preproc['GPSTrack'])
         csv_exiftool_frames['GPSAltitude'] = np.interp(csv_exiftool_frames['datetime_unix'], csv_bathy_preproc['datetime_unix'], csv_bathy_preproc['GPSAltitude'])
-        # delete GPS:Position column
-        #csv_exiftool_frames = csv_exiftool_frames.drop('GPSPosition', axis=1)
         
         # set altitude below sea level
         csv_exiftool_frames['GPSAltitudeRef'] = "Below Sea Level"
@@ -203,40 +216,41 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
 
     print("\n-- 6 of 6 : IMPORT EXIF METADATA\n")
     # save frame csv, before import metadata
-    csv_exiftool_frames.to_csv(CSV_EXIFTOOL_FRAMES, index=False)
+    csv_exiftool_frames.to_csv(CSV_EXIFTOOL_FRAMES, index=False) 
 
-    # CLR 07/07/2023 ---- Comment the next 2 lines so that we don't geotag the frames --> faster ! ----------
-    import_csv_metadata =  "exiftool -config " + exiftool_config_path + " -csv=" + CSV_EXIFTOOL_FRAMES + " -fileorder filename " + FRAMES_PATH + " -overwrite_original"
-    os.system(import_csv_metadata)
+    texec = dt.datetime.now()
+    with exiftool.ExifTool(common_args=[], config_file=exiftool_config_path) as et:
+        et.execute("-csv="+CSV_EXIFTOOL_FRAMES," -fileorder filename", FRAMES_PATH, "-overwrite_original")
+    print("Writing metadata execution time: ", dt.datetime.now() - texec)
+
     # once we have imported all metadata, remove useless columns from metadata csv and rename GPS columns
-    # csv_exiftool_frames.rename(columns={"Composite:GPSLatitude": "GPSLatitude", "Composite:GPSLongitude": "GPSLongitude"}, inplace=True)
     col_names = csv_exiftool_frames.columns
     # EXIF metadata we want to keep, please check :
     # https://docs.google.com/spreadsheets/d/1iSKDvFrh-kP9wOU9bt9H7lcZKOnF7pe9n-8t15pOrmw/edit?usp=sharing
     keep_param_list = ["ApertureValue", "Compression", "Contrast", "CreateDate", "DateCreated", "DateTimeDigitized", "DateTimeOriginal", "DigitalZoomRatio", "ExifImageHeight", "ExifImageWidth", 
                         "ExifToolVersion", "ExifVersion", "ExposureCompensation", "ExposureMode", "ExposureProgram", "FileName", "FileSize", "FileType", "FileTypeExtension", "FNumber", 
-                        "FocalLength", "FocalLength35efl", "FocalLengthIn35mmFormat", "FOV", "GPSAltitude", "GPSAltitudeRef", "GPSDateTime", "GPSDate", "GPSTime", "GPSLatitude", "GPSLatitudeRef", "GPSLongitude", 
-                        "GPSLongitudeRef", "GPSMapDatum", "GPSPosition", "GPSTimeStamp", "GPSRoll", "GPSPitch", "GPSTrack", "ImageHeight", "ImageWidth", "LightValue", "Make", "MaxApertureValue", 
+                        "FocalLength", "FocalLength35efl", "FocalLengthIn35mmFormat", "FOV", "GPSAltitude", "GPSAltitudeRef", "GPSDateTime", "GPSDate", "GPSTime", "GPSLatitude", "GPSLongitude",
+                        "GPSMapDatum", "GPSPosition", "GPSTimeStamp", "GPSRoll", "GPSPitch", "GPSTrack", "ImageHeight", "ImageWidth", "LightValue", "Make", "MaxApertureValue", 
                         "MaximumShutterAngle", "Megapixels", "MeteringMode", "MIMEType", "Model", "Saturation", "ScaleFactor35efl", "SceneCaptureType", "SceneType", "SensingMethod", "Sharpness", 
-                        "ShutterSpeed", "Software", "SubSecDateTimeOriginal", "ThumbnailImage", "ThumbnailLength", "ThumbnailOffset", "WhiteBalance", "XResolution", "YResolution", "Composite:GPSLatitude", "Composite:GPSLongitude",
-                        "GPSfix", "GPSsdne", "GPSsde", "GPSsdn"]
-
+                        "ShutterSpeed", "Software", "SubSecDateTimeOriginal", "ThumbnailImage", "ThumbnailLength", "ThumbnailOffset", "WhiteBalance", "XResolution", "YResolution", "GPSfix", "GPSsdne", "GPSsde", "GPSsdn"]
+    
     # intersection between metadata we want to keep and EXIF metadata
     intersection_list = []
     for col in col_names:
-        col = col.split(':')[1] if ':' in col else col                
+        col = col.split(':')[1] if ':' in col else col           
         if col in keep_param_list and col not in intersection_list:
             intersection_list.append(col)
 
-    csv_exiftool_frames = csv_exiftool_frames.rename((lambda col : col.split(':')[1] if ':' in col else col), axis='columns') # Remove Exif: or XMP: in metadata.csv
     # filter df
     csv_exiftool_frames = csv_exiftool_frames[intersection_list]
+    # Remove Exif: or XMP: in metadata.csv
+    csv_exiftool_frames = csv_exiftool_frames.rename((lambda col : col.split(':')[1] if ':' in col else col), axis='columns') 
     # delete all empty columns
     csv_exiftool_frames.dropna(axis=1,inplace=True)
+
     # delete all zero columns
     csv_exiftool_frames = csv_exiftool_frames.loc[:, (csv_exiftool_frames != 0).any(axis=0)]
-    # delete useless col
-    #csv_exiftool_frames.drop("SubSecDateTimeOriginal_np", axis=1, inplace=True)
+
     # sort metadata columns by name
     csv_exiftool_frames = csv_exiftool_frames.sort_index(axis=1)
     # save filtered frame csv, after import metadata

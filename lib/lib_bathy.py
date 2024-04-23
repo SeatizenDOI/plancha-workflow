@@ -164,7 +164,6 @@ def parse_raw_bin(log_path,cfg_prog):
         subprocess.call(tmp_cmd, shell=True)
         dfdict[p] = pd.read_csv(filebuf, sep=";")
         print('found',len(dfdict[p]),'points')
-        # print(dfdict[p])
         os.remove(filebuf)
     for p in status_list:
         tmp_cmd = "python ./lib/mavlogdump.py --planner --format csv --type "+p+" "+log_path+" > "+filebuf
@@ -173,7 +172,6 @@ def parse_raw_bin(log_path,cfg_prog):
         #     tmp_cmd=tmp_cmd.replace('/','\\')
         subprocess.call(tmp_cmd, shell=True)
         dfdict[p] = pd.read_csv(filebuf, sep=";")
-        # print(dfdict[p])
         os.remove(filebuf)
         
     # time func execution
@@ -531,10 +529,6 @@ def gen_gridded_depth_data(df,cfg_prog):
     latlon_mesh_bounds = [np.min(df.Lat_corr),np.max(df.Lat_corr),
                           np.min(df.Lng_corr),np.max(df.Lng_corr)]
     
-    
-    # xi = np.linspace(utm_mesh_bounds[0],utm_mesh_bounds[1],nbpt_mesh)
-    # yi = np.linspace(utm_mesh_bounds[2],utm_mesh_bounds[3],nbpt_mesh)
-    
     xi = np.arange(utm_mesh_bounds[0],utm_mesh_bounds[1],spacing_m)
     yi = np.arange(utm_mesh_bounds[2],utm_mesh_bounds[3],spacing_m)
     xi, yi = np.meshgrid(xi,yi)
@@ -562,11 +556,6 @@ def gen_gridded_depth_data(df,cfg_prog):
     wgs2utm = pyproj.Proj(proj='utm', zone=projzone, ellps=projellps,south=projsouth)
     loni, lati = wgs2utm(xi,yi,inverse=True)
        
-    
-    # filter entry with 'nan' z-values (optional, matrix may not be squared after)
-    # xi = xi[np.invert(np.isnan(zi))]
-    # yi = yi[np.invert(np.isnan(zi))]
-    # zi = zi[np.invert(np.isnan(zi))]
     df_gridded = pd.DataFrame(np.hstack((xi,yi,zi,lati,loni)),
                               columns=['X_utm_corr','Y_utm_corr','Depth_corr',
                                        'Lat_corr','Lng_corr'])
@@ -736,18 +725,18 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
     xyz = np.array(df[['X_utm_corr','Y_utm_corr','Depth_corr']])
     # xyz = np.array(df[['Lng_corr','Lat_corr','Depth_corr']])
     # build point cloud from xyz matrix
-    pcd, avgdist , stddist_rel = build_o3d_pointcloud(xyz)
-    print('stddist_rel >>>>>>',stddist_rel)
+    pcd, avgdist , stddist = build_o3d_pointcloud(xyz)
+    print('stddist_rel >>>>>>',stddist)
     # gen gridded data
     print('Generating gridded data')
-    cfg_prog['mesh']['spacing_m'] = np.round((avgdist+3*stddist_rel),3)
+    cfg_prog['mesh']['spacing_m'] = np.round((avgdist+3*stddist),3)
     df_grid = gen_gridded_depth_data(df,cfg_prog)
     
     # get x, y, and z values in a numpy array
     print('Computing final point cloud and mesh')
     xyz = np.array(df_grid[['X_utm_corr','Y_utm_corr','Depth_corr']])
     # build point cloud from xyz matrix
-    pcd, avgdist , stddist_rel = build_o3d_pointcloud(xyz)
+    pcd, avgdist , _ = build_o3d_pointcloud(xyz)
     # build mesh with faces from point cloud
     mesh = build_o3d_trimesh(pcd,avgdist,method=cfg_prog['mesh']['3Dalgo'])
     
@@ -818,7 +807,6 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
         resolution=(-resol, resol),
         rasterize_function=partial(rasterize_points_griddata, filter_nan=True,  method=cfg_prog['mesh']['method']),
     )
-    print(geo_grid)
     print('Rasterize it')
     raster_name = sessiontag+'_bathy_raster-'+tags+'.tif'
     geo_grid["depth"].rio.to_raster(filepath+raster_name)
