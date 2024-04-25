@@ -24,6 +24,8 @@ def parse_option():
     parser.add_argument("-nc", "--no_clean", default="", help="Specify folder to clean f: FRAMES, m: METADATA, b: BATHY, g: GPS, Ex: -no_clean fm")
     parser.add_argument("-frgp", "--force_use_rgp", action="store_true", help="Force to use RGP station to compute base gps")
     parser.add_argument("-rp", "--root_path", default=None, help="Root path for the session")
+    parser.add_argument("-rf", "--remove_frames", default=None, help="Remove frames until meet the number")
+
 
     return parser.parse_args()
 
@@ -130,6 +132,9 @@ def main(opt):
             ### Split videos into frames
             if not opt.no_split:
                 split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, session_name)
+            
+            if opt.remove_frames and opt.remove_frames.isnumeric():
+                remove_frames(FRAMES_PATH, int(opt.remove_frames))
             
             ### We just want to split videos so we continue
             if opt.only_split: continue

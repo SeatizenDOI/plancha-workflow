@@ -1,10 +1,14 @@
 import os
-from datetime import datetime
-import platform
-import shutil
+import wget
 import math
+import shutil
 import zipfile
+import hatanaka
+import platform
 import pandas as pd
+from pathlib import Path
+from datetime import datetime
+from subprocess import Popen, PIPE, CalledProcessError
 
 from lib.lib_plot import *
 from lib.lib_tools import llh_to_txt, pos_to_llh, replace_line, get_hours_from_bin_sensors, gpx_to_llh
@@ -81,56 +85,38 @@ def download_rgp(SESSION_NAME, time_first_frame, FRAMES_PATH, GPS_BASE_PATH, SEN
 
     # Download
     for h in range(hour_start, hour_end+1):
-        h_letter = alphabet[h]
-        download_cmd = "wget -nv -nc ftp://rgpdata.ign.fr/pub/data/" + y + "/" + doy + "/data_1/" + rgp_station + doy + h_letter + "." + yy + "d.Z -P " + GPS_BASE_PATH
-        if platform.system() == 'Windows':
-            download_cmd=download_cmd.replace('/','\\')
-        os.system(download_cmd)
+        url = f"ftp://rgpdata.ign.fr/pub/data/{y}/{doy}/data_1/{rgp_station}{doy}{alphabet[h]}.{yy}d.Z"
+        print(f"\nRetrieve from {url}")
+        wget.download(url, out=GPS_BASE_PATH)
 
     # Uncompress downloaded files
-    for file in os.listdir(GPS_BASE_PATH) :
-        if file.endswith(".Z") :
-            # unzip .Z file
-            tmp_cmd = "uncompress -f " + GPS_BASE_PATH + "/" + file
-            if platform.system() == 'Windows':
-                tmp_cmd=tmp_cmd.replace('/','\\')
-            os.system(tmp_cmd)
-            # CRX2RNX is a command line tool to decompress Compact RINEX into RINEX data :
-            # https://lib.rs/crates/crx2rnx
-            tmp_cmd = "crx2rnx " + GPS_BASE_PATH + "/" + file.replace(".Z", "")
-            if platform.system() == 'Windows':
-                tmp_cmd=tmp_cmd.replace('/','\\')
-            os.system(tmp_cmd)
+    GPS_BASE_PATH = Path(GPS_BASE_PATH)
+    for file in GPS_BASE_PATH.iterdir() :
+        if file.suffix == ".Z":
+            print(f"\nUncompress {file}")
+            hatanaka.decompress_on_disk(str(file))
 
-    # Merge the observation files
-    # Teqc (pronouced "tek") is a simple yet powerful and unified approach to solving many pre-processing problems with 
-    # GPS, GLONASS, Galileo, SBAS, Beidou, QZSS, and IRNSS data, especially in RINEX or BINEX format:
-    # https://www.unavco.org/software/data-processing/teqc/teqc.html
-    merge_rnx = "teqc " + GPS_BASE_PATH + "/*" + yy + "o > " + GPS_BASE_PATH + "/" + rgp_station + doy + "_merged.o"
-    if platform.system() == 'Windows':
-        merge_rnx=merge_rnx.replace('/','\\')
+    # Merged rinex file
+    isFirst = False
+    with open(Path(GPS_BASE_PATH,f"{rgp_station}{doy}_merged.o"), "w") as merged_rinex:
+        for file in sorted(list(GPS_BASE_PATH.iterdir())) :
+            if file.suffix != f".{yy}o": continue
 
-    os.system(merge_rnx)
-
+            with open(file, "r") as file_rinex:
+                if isFirst == False:
+                    merged_rinex.write(file_rinex.read())
+                    isFirst = True
+                else:
+                    a = file_rinex.readline()
+                    while "END OF HEADER" not in a:
+                        a = file_rinex.readline()
+                    merged_rinex.write(file_rinex.read())
     flag_base = 2
-
     return flag_base
 
 def ppk(SESSION_NAME, GPS_BASE_PATH, GPS_DEVICE_PATH, PPK_CONFIG_PATH, ppk_cfgs, flag_base, gpsbaseposition_mean_on_llh) :
 
-    
-    if "session" in SESSION_NAME :
-        date_reach = SESSION_NAME.split("session_")[1][0:10].replace("_", "")
-
-    else :
-        date_reach = SESSION_NAME[0:8]
-    #---------------------------------------------------------------------- USELESS ?
-    # # Set maximum number of simultaneous occurences of rnx2rtkp to run
-    # max_windows = 10
-    # # Get list of current threads running
-    # current_process = psutil.Process()
-    # num_start = len(current_process.children())
-    #----------------------------------------------------------------------
+    date_reach = SESSION_NAME[0:8]
 
     #######################################################################
     ########################### BASE ######################################
@@ -244,19 +230,19 @@ def ppk(SESSION_NAME, GPS_BASE_PATH, GPS_DEVICE_PATH, PPK_CONFIG_PATH, ppk_cfgs,
 
     print("We are currently doing PPK on session : ", SESSION_NAME)
     pos_path = GPS_DEVICE_PATH + "/ppk_solution_" + SESSION_NAME + ".pos"
-
     # Create command to run solution
-    rtk_cmd = "rnx2rtkp -x 0 -y 2 -k " + ppk_config_dest_file + " -o " + pos_path + " " + deviceFile + " " + baseFile + " " + navFile
-    if platform.system() == 'Windows':
-        rtk_cmd=rtk_cmd.replace('/','\\')
     # -x : debug trace level (0:off)
     # -y : output solution status (0:off,1:states,2:residuals)
     # -k : config options
     # -o : output file
     # Q = 1:fix, 2:float, 3:sbas, 4:dgps, 5:single, 6:ppp
+    with Popen(["rnx2rtkp", "-x", "0", "-y", "2", "-k", ppk_config_dest_file,"-o", pos_path, deviceFile, baseFile, navFile], stdout=PIPE, bufsize=1, universal_newlines=True) as p:
+        for line in p.stdout:
+            print(line, end='')
 
-    # Run command
-    os.system(rtk_cmd)
+        p.wait() # Wait because sometimes Python is too fast.
+        if p.returncode != 0:
+            raise CalledProcessError(p.returncode, p.args)
 
     llh_path = pos_to_llh(pos_path)
     return llh_path

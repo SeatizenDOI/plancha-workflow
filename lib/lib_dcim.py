@@ -50,6 +50,16 @@ def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME):
     print(f"\nfunc: exec time --> {dt.datetime.now() - texec} sec")
     print("End of splitting videos\n")
 
+def remove_frames(FRAMES_PATH, max_frames):
+    print(f"-- Removing first frame")
+    frame_path = Path(FRAMES_PATH)
+    for frame in sorted(list(frame_path.iterdir())):
+        video_number, frame_number = [int(a) for a in frame.stem.split("_")[4:]]
+        if video_number == 1 and frame_number < max_frames:
+            print(f"Remove frame {frame}")
+            frame.unlink()
+
+        if video_number == 1 and max_frames == frame_number: break
 
 def write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, leap_sec):
     print("\n-- Writing session info in csv file\n")
@@ -241,16 +251,15 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
         if col in keep_param_list and col not in intersection_list:
             intersection_list.append(col)
 
-    # filter df
-    csv_exiftool_frames = csv_exiftool_frames[intersection_list]
+    print(list(csv_exiftool_frames), intersection_list)
     # Remove Exif: or XMP: in metadata.csv
     csv_exiftool_frames = csv_exiftool_frames.rename((lambda col : col.split(':')[1] if ':' in col else col), axis='columns') 
+    # filter df
+    csv_exiftool_frames = csv_exiftool_frames[intersection_list]
     # delete all empty columns
     csv_exiftool_frames.dropna(axis=1,inplace=True)
-
     # delete all zero columns
     csv_exiftool_frames = csv_exiftool_frames.loc[:, (csv_exiftool_frames != 0).any(axis=0)]
-
     # sort metadata columns by name
     csv_exiftool_frames = csv_exiftool_frames.sort_index(axis=1)
     # save filtered frame csv, after import metadata

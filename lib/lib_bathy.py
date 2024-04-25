@@ -389,6 +389,7 @@ def calc_raw_depth_at_gps_coord(df,dfdict,cfg_prog):
         arr_dpth = dfdict[dpthkey][['TimeUS','Dist']].to_numpy(dtype='float32')
 
     # Check if echo sounder launch
+    print(arr_dpth)
     if sum(arr_dpth[:, 1]) == 0:
         raise NameError("/!\\ ECHO sonder doesn't launch /!\\")
 

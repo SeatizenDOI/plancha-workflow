@@ -58,9 +58,13 @@ sudo apt install libimage-exiftool-perl
 ### rtklib
 
 [Documentation link](https://rtklibexplorer.wordpress.com/tag/rnx2rtkp/)
+
+Ubuntu : 
 ```bash
 sudo apt install rtklib
 ```
+
+Windows : 
 
 ## Plancha config file <!--TODO finish-->
 
