@@ -4,8 +4,8 @@
 
 </div>
 
-Ce dépôt permet de traîter les données récupérées par le projet [Plancha](https://ocean-indien.ifremer.fr/en/Projects/Technological-innovations/PLANCHA-2021-2023).
-Il découpe les vidéos en images et les géoréférences après avoir recalibrer les positions GPS. <!--TODO étayer and translate-->
+Ce dépôt permet de traiter les données récupérées par le projet [Plancha](https://ocean-indien.ifremer.fr/en/Projects/Technological-innovations/PLANCHA-2021-2023).
+Il découpe les vidéos en images et les géoréférence après avoir recalibré les positions GPS. 
 
 # Summary
 
