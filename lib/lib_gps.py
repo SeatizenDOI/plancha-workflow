@@ -4,7 +4,6 @@ import math
 import shutil
 import zipfile
 import hatanaka
-import platform
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -81,7 +80,7 @@ def download_rgp(SESSION_NAME, time_first_frame, FRAMES_PATH, GPS_BASE_PATH, SEN
 
     # If no frames, get hours from sensor file
     if nb_frames == 0:
-        hour_start, hour_end = get_hours_from_bin_sensors(SENSOR_PATH)
+        hour_start, hour_end = get_hours_from_bin_sensors(SESSION_NAME, SENSOR_PATH)
 
     # Download
     for h in range(hour_start, hour_end+1):

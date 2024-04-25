@@ -162,25 +162,14 @@ def main(opt):
             ### run bathy analysis if possible
             if not opt.no_bathy:
                 try:
-                    df_bathy = run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH)
-                    run_bathy_postprocessing(df_bathy, cfg_prog, BATHY_PATH)
-
-                    # change , in . in .ply file if it exist
-                    for fname in os.listdir(BATHY_PATH):
-                        if fname.endswith('.ply'):
-                            replace_comma_by_dot(BATHY_PATH + "/" + fname)
+                    df_bathy = run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INFO_PATH)
+                    cfg_prog = run_bathy_postprocessing(df_bathy, cfg_prog, BATHY_PATH)                            
+                
                 except Exception:
                     print(traceback.format_exc(), end="\n\n")
-
-                    # In case bathy failed, we need a dump of config file
-                    with open(Path(BATHY_PATH, 'prog_config.json'), 'w') as fp:
-                        json.dump(cfg_prog, fp,indent=3)
                     
                     print("[ERROR] Something occur during bathy, continue to write metadata in images")
-            else:
-                # In case bathy failed, we need a dump of config file
-                with open(Path(BATHY_PATH, 'prog_config.json'), 'w') as fp:
-                    json.dump(cfg_prog, fp,indent=3)
+
 
             ### compute and add metadata to frames
             if not opt.no_annotate:
@@ -197,6 +186,12 @@ def main(opt):
             # Write error in file
             with open("error.log", "a") as file:
                 file.writelines(traceback.format_exc())
+        
+        finally:
+            # Always write config in METADATA folder
+            print("\n\n-- Finally, save plancha_config.json")
+            with open(Path(METADATA_PATH,'prog_config.json'), 'w') as fp:
+                json.dump(cfg_prog, fp,indent=3)
 
     # Stat
     print("End of process. On {} sessions, {} fails. ".format(len(listSessionFirstFrame), len(session_name_fails)))

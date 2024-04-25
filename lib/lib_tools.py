@@ -1,4 +1,6 @@
 import os
+import pytz
+import pycountry
 import subprocess
 import pandas as pd
 from pathlib import Path
@@ -163,14 +165,19 @@ def gpx_to_llh(gpx_path):
     df.to_csv(Path(folder, FILENAME_LLH), index=False, sep=" ", header=False)
 
 
-def get_hours_from_bin_sensors(sensor_path):
+def get_hours_from_bin_sensors(SESSION_NAME, sensors_path):
     print("Get hours from bin sensors: ")
-    if not os.path.exists(sensor_path): return 0, 0
+    if not os.path.exists(sensors_path): return 0, 0
+
+    # Get utcoffset
+    alpha3code = SESSION_NAME.split("_")[1].split('-')[0]
+    alpha2code = pycountry.countries.get(alpha_3 = alpha3code).alpha_2
+    utcoffset = datetime.now(pytz.timezone(dict(pytz.country_timezones)[alpha2code][0])).utcoffset().seconds//3600
 
     filebuf = './tmp.csv'
-    for file in os.listdir(sensor_path):
+    for file in os.listdir(sensors_path):
         if file.endswith(".BIN"):
-            file_path = os.path.join(sensor_path, file)
+            file_path = os.path.join(sensors_path, file)
 
             # Parse bin.
             tmp_cmd = "python lib/mavlogdump.py --planner --format csv --type GPS "+file_path+" > "+filebuf
@@ -181,8 +188,42 @@ def get_hours_from_bin_sensors(sensor_path):
             os.remove(filebuf)
 
             # Parse timestamp.
-            first_hour = datetime.fromtimestamp(df.timestamp[0]).hour - 4
-            last_hour = datetime.fromtimestamp(df.timestamp[len(df)-1]).hour + 1 - 4 #!FIXME Horrible, Manually put time offset from utc
+            first_hour = datetime.fromtimestamp(df.timestamp[0]).hour - utcoffset
+            last_hour = datetime.fromtimestamp(df.timestamp[len(df)-1]).hour + 1 - utcoffset
             print("Hours found: ", first_hour, last_hour)
             return first_hour, last_hour
     return 0, 0
+
+def generate_waypoints_file(sensors_path, df_gps, df_msg):
+    """
+        Create a waypoints file from a BIN file.
+
+        QGC WPL <VERSION>
+        <INDEX> <CURRENT WP> <COORD FRAME> <COMMAND> <PARAM1> <PARAM2> <PARAM3> <PARAM4> <PARAM5/X/LATITUDE> <PARAM6/Y/LONGITUDE> <PARAM7/Z/ALTITUDE> <AUTOCONTINUE>
+    """
+    idx = 0
+    sensors_path = Path(sensors_path)
+    file_to_create = Path(sensors_path, f"{sensors_path.parent.name}_mission.waypoints")
+
+    data = []
+    for _, row in df_msg.iterrows():
+        if "WP" in row.Message :
+            a = df_gps[df_gps["timestamp"] <= row["timestamp"]].iloc[-1]
+            b = df_gps[df_gps["timestamp"] >= row["timestamp"]].iloc[0]
+            lat = (a["Lat"] + b["Lat"]) / 2
+            lon = (a["Lng"] + b["Lng"]) / 2
+
+            data.append([idx, 0, 3, 16, 0, 0, 0, 0, lat, lon, 100, 1])
+            idx += 1
+        
+        elif "SetCamTrigDst" in row.Message:
+            data.append([idx, 0, 0, 206, 0, 0, 1, 0, 0, 0, 0, 1])
+            idx += 1
+    
+    d = pd.DataFrame(data)
+    d.to_csv(file_to_create, sep="\t", index=False, header=False)
+
+    with open(file_to_create, "r+") as file:
+        content = file.read()
+        file.seek(0,0)
+        file.write("QGC WPL 110\n" + content)

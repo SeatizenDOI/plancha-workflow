@@ -9,12 +9,13 @@ import csv
 import json
 import pyproj 
 import shutil 
-import platform
+import traceback
 import subprocess
 import numpy as np
 import pandas as pd
 import datetime as dt
 import geopandas as gpd
+from pathlib import Path
 import transforms3d as t3d 
 from functools import partial
 import matplotlib.pyplot as plt
@@ -28,6 +29,7 @@ from geocube.rasterize import rasterize_points_griddata
 
 from lib.lib_folium_maps import *
 from lib.lib_open3d_model import *
+from lib.lib_tools import replace_comma_by_dot, generate_waypoints_file
 
 def clean_nullbyte_raw_log(log_path):
     # time func execution
@@ -91,7 +93,6 @@ def parse_raw_log(log_path,cfg_prog):
     
     #Parsing the log file
     print('func: parsing log for keys:')
-    print(param_list,status_list)
     with open(log_path) as file:
         parsed=csv.reader(file,delimiter=',')
         for line in parsed:
@@ -143,36 +144,22 @@ def parse_raw_bin(log_path,cfg_prog):
     if len(opt) > 0 and opt[0] != '':
         param_list.extend(opt)
     
-    # init buffers
-    dfdict  ={}
-    for param in param_list:
-        dfdict[param]   = []
-    for status in status_list:
-        dfdict[status]   = []
+    dfdict = {}
     
     #Parsing the bin file
     print('func: parsing log for keys:')
     print(param_list,status_list)
     
     filebuf = './tmp.csv'
-    for p in param_list:
+    for p in [*param_list, *status_list]:
         print('Reading data for entry:',p)
+        
         tmp_cmd = "python ./lib/mavlogdump.py --planner --format csv --type "+p+" "+log_path+" > "+filebuf
-        # print(tmp_cmd)
-        # if platform.system() == 'Windows':
-        #     tmp_cmd=tmp_cmd.replace('/','\\')
         subprocess.call(tmp_cmd, shell=True)
         dfdict[p] = pd.read_csv(filebuf, sep=";")
+        os.remove(filebuf)
+        
         print('found',len(dfdict[p]),'points')
-        os.remove(filebuf)
-    for p in status_list:
-        tmp_cmd = "python ./lib/mavlogdump.py --planner --format csv --type "+p+" "+log_path+" > "+filebuf
-        # print(tmp_cmd)
-        # if platform.system() == 'Windows':
-        #     tmp_cmd=tmp_cmd.replace('/','\\')
-        subprocess.call(tmp_cmd, shell=True)
-        dfdict[p] = pd.read_csv(filebuf, sep=";")
-        os.remove(filebuf)
         
     # time func execution
     print('func: exec time --> ',dt.datetime.now() - texec)
@@ -180,11 +167,10 @@ def parse_raw_bin(log_path,cfg_prog):
     return dfdict
 
 def convert_GMS_GWk_to_UTC_time(gpsweek,gpsseconds,leapseconds=0):
-    import datetime
     datetimeformat = "%Y-%m-%d %H:%M:%S.%f"
-    epoch = datetime.datetime.strptime("1980-01-06 00:00:00.000",datetimeformat)
-    elapsed = datetime.timedelta(days=int((gpsweek*7)),seconds=int(gpsseconds+leapseconds))
-    return datetime.datetime.strftime(epoch + elapsed,datetimeformat)
+    epoch = dt.datetime.strptime("1980-01-06 00:00:00.000",datetimeformat)
+    elapsed = dt.timedelta(days=int((gpsweek*7)),seconds=int(gpsseconds+leapseconds))
+    return dt.datetime.strftime(epoch + elapsed,datetimeformat)
 
 def build_dataframe_gps(dfdict,cfg_prog, TXT_PATH):
     # time func execution
@@ -239,7 +225,7 @@ def build_dataframe_gps(dfdict,cfg_prog, TXT_PATH):
             print('func: filter data according to RTK fix status (=6 in autopilot log)')
             df = df[df.Status == 6]
 
-    # Filter data according to waypoints enabled ?
+    # Filter data according to waypoints enabled
     if cfg_gps['filt_waypoint'] == True :
         print('func: filter data according to waypoint messages')
         t_start = 0
@@ -389,7 +375,6 @@ def calc_raw_depth_at_gps_coord(df,dfdict,cfg_prog):
         arr_dpth = dfdict[dpthkey][['TimeUS','Dist']].to_numpy(dtype='float32')
 
     # Check if echo sounder launch
-    print(arr_dpth)
     if sum(arr_dpth[:, 1]) == 0:
         raise NameError("/!\\ ECHO sonder doesn't launch /!\\")
 
@@ -584,12 +569,9 @@ def plot_basic_bathy_data_time(df,BATHY_PATH,fname='0'):
                  ax=ax2,grid=True)
     
     sizes_inches = 12
-    figpath = BATHY_PATH + "/"
-    figname = figpath+'attitude_depth_timeplot_'+fname
+    figpath = Path(BATHY_PATH, f'attitude_depth_timeplot_{fname}.png')
     fig.set_size_inches(sizes_inches,sizes_inches)
-    fig.savefig(figname+'.png',dpi=600)
-    
-    return fig
+    fig.savefig(figpath,dpi=600)
 
 def plot_basic_bathy_data_2D(df, BATHY_PATH,fname='0'):
     
@@ -601,16 +583,18 @@ def plot_basic_bathy_data_2D(df, BATHY_PATH,fname='0'):
     ax2d.grid()
     
     sizes_inches = 12
-    figpath = BATHY_PATH + "/"
-    figname = figpath+'depth_samples_utmcoord_'+fname    
+    figpath = Path(BATHY_PATH, f'depth_samples_utmcoord_{fname}.png')
     fig2d.set_size_inches(sizes_inches,sizes_inches)
-    fig2d.savefig(figname+'.png',dpi=600)
-    
-    return fig2d
+    fig2d.savefig(figpath,dpi=600)
 
-#%% MAIN BATHY PROCESSING
+def write_mission_info(SESSION_INFO_PATH, df_gps):
+    session_info = pd.read_csv(SESSION_INFO_PATH)
+    session_info.insert(len(session_info.columns), "Mission_START", [df_gps.GPS_time.values[0]])
+    session_info.insert(len(session_info.columns), "Mission_END", [df_gps.GPS_time.values[-1]])
+    session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
 
-def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH):
+
+def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INFO_PATH):
     
     ##### section : load data ###
     flag_log, dfdict = 0, {}
@@ -637,13 +621,19 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH):
         return
     else:
         print("\n-- 3A of 6 : BATHIMETRY PROCESSING\n")
+
+    print('\ninfo: Generate waypoints file from bin')
+    generate_waypoints_file(SENSORS_PATH, dfdict[cfg_prog["parse"]["gpskey"]], dfdict["MSG"])
     
     print('\ninfo: Build base dataframe from GPS')
     
     df = build_dataframe_gps(dfdict,cfg_prog, TXT_PATH)
+
+    print('\ninfo: Write start and end GPStime of the mission in session_info')
+    write_mission_info(SESSION_INFO_PATH, df)
     
-    # print('info: GPS log starts >',df.GPS_time.values[0])
-    # print('info: GPS log ends   >',df.GPS_time.values[-1])
+    print('info: GPS log starts >',df.GPS_time.values[0])
+    print('info: GPS log ends   >',df.GPS_time.values[-1])
     
     print('info: number of point in main dataframe : ', len(df))
     
@@ -672,11 +662,6 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH):
     if not os.path.exists(BATHY_PATH):
         os.makedirs(BATHY_PATH)
         
-    # dump prog config
-    filepath = cfg_prog['path']['destpath']
-    with open(filepath+'prog_config.json', 'w') as fp:
-        json.dump(cfg_prog, fp,indent=3)
-        
     # dump processed data
     filepath = BATHY_PATH + "/"
     df.to_csv(filepath+'bathy_preproc.csv',sep=',',index=False)
@@ -691,8 +676,8 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH):
     
     print('\ninfo: Plot data')
     
-    fig = plot_basic_bathy_data_time(df, BATHY_PATH,'preproc')
-    fig = plot_basic_bathy_data_2D(df, BATHY_PATH,'preproc')
+    plot_basic_bathy_data_time(df, BATHY_PATH,'preproc')
+    plot_basic_bathy_data_2D(df, BATHY_PATH,'preproc')
     
     print('\ninfo: Generate interactive map')
     # generate map base layer
@@ -709,10 +694,6 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH):
     
     return df
 
-
-
-#%% 3D MODEL
-
 def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
     ###### section : interpolate bathy to regular grid
     # time func execution
@@ -726,8 +707,8 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
     xyz = np.array(df[['X_utm_corr','Y_utm_corr','Depth_corr']])
     # xyz = np.array(df[['Lng_corr','Lat_corr','Depth_corr']])
     # build point cloud from xyz matrix
-    pcd, avgdist , stddist = build_o3d_pointcloud(xyz)
-    print('stddist_rel >>>>>>',stddist)
+    pcd, avgdist, stddist = build_o3d_pointcloud(xyz)
+    print('stddist >>>>>>',stddist)
     # gen gridded data
     print('Generating gridded data')
     cfg_prog['mesh']['spacing_m'] = np.round((avgdist+3*stddist),3)
@@ -752,10 +733,6 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
     # set current path vars
     filepath = BATHY_PATH + "/"
     sessiontag = cfg_prog['session_info']['session_name']
-
-    # dump prog config
-    with open(filepath+'prog_config.json', 'w') as fp:
-        json.dump(cfg_prog, fp,indent=3)
     
     # set tags for file names
     tags = '{0}'.format(cfg_prog['mesh']['method'])
@@ -771,7 +748,7 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
     
     # Plot post-processed bathy data
     print('\ninfo: Generate simple plot of post-processed data')
-    fig = plot_basic_bathy_data_2D(df_grid, BATHY_PATH,'postproc_'+tags)   
+    plot_basic_bathy_data_2D(df_grid, BATHY_PATH,'postproc_'+tags)   
 
     # set tags for file names
     tags = '{0}'.format(cfg_prog['mesh']['method'])
@@ -780,8 +757,9 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
     print('\ninfo: Generating shapefile from gridded data')
     df_shp = df_grid[['Lng_corr','Lat_corr','Depth_corr']]
     df_shp.columns = ['lng','lat','depth']
-    df_shp['geometry'] = df_shp.apply(lambda row: Point(row.lng,row.lat,row.depth),axis=1) 
-    gdf = gpd.GeoDataFrame(df_shp, geometry=df_shp.geometry)
+    df_shp_geometry = df_shp.assign(geometry=df_shp.apply(lambda row: Point(row.lng,row.lat,row.depth),axis=1))
+
+    gdf = gpd.GeoDataFrame(df_shp_geometry, geometry=df_shp_geometry.geometry)
     gdf.set_crs(epsg=4326, inplace=True)
     gdf.to_file(filepath+sessiontag+'_bathy_shapefile-pointcloud-'+tags+'.shp')
     print("Shapefile created")
@@ -796,10 +774,12 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
     resol = np.min([resol_lng, resol_lat])
     maxnbpt = 1e6
     condpt = ((np.max(gdf.lng.values)-np.min(gdf.lng.values))/resol) * ((np.max(gdf.lat.values)-np.min(gdf.lat.values))/resol)
+    reduceTime = 0
     while condpt >= maxnbpt:
         resol = resol*1.1
         condpt = ((np.max(gdf.lng.values)-np.min(gdf.lng.values))/resol) * ((np.max(gdf.lat.values)-np.min(gdf.lat.values))/resol)
-        print('reducing raster resolution, file too big otherwise ...')
+        reduceTime += 1
+    print(f'reducing raster resolution {reduceTime} times, file too big otherwise ...')
     print('Done adjusting raster resolution ...')
     print('Building geocube object')
     geo_grid = make_geocube(
@@ -808,35 +788,34 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
         resolution=(-resol, resol),
         rasterize_function=partial(rasterize_points_griddata, filter_nan=True,  method=cfg_prog['mesh']['method']),
     )
-    print('Rasterize it')
-    raster_name = sessiontag+'_bathy_raster-'+tags+'.tif'
-    geo_grid["depth"].rio.to_raster(filepath+raster_name)
+    raster_path = str(Path(filepath, f"{sessiontag}_bathy_raster-{tags}.tif"))
+    print(f'Rasterize it: {raster_path}')
+    geo_grid["depth"].rio.to_raster(raster_path)
     print("Raster created")
 
     # Shapefile with countours
     print('\ninfo: Generating shapefile with contour lines from raster')
     try:
         # shapefile with countour lines polygons from raster
-        tif_file = raster_name
         nb_line = 10
         z_var = 'depth' # name of columns with depth in tiff file
         interval_m = (np.max(gdf[z_var].values)-np.min(gdf[z_var].values))/nb_line
         interval_m = str(interval_m) # in meter, cast to string
-        # shapzfile with contour as lines
-        out_file = sessiontag+'_bathy_shapefile-contourline-'+tags+'.shp'
-        gdal_cmd = 'gdal_contour -b 1 -a '+z_var+' -i '+interval_m+' '+filepath+tif_file+' '+filepath+out_file
-        if platform.system() == 'Windows':
-                gdal_cmd=gdal_cmd.replace('/','\\')
-        print('gdal cmd:',gdal_cmd)
-        os.system(gdal_cmd)
-        # shapzfile with contour as filled polygon
-        out_file = sessiontag+'_bathy_shapefile-contourpoly-'+tags+'.shp'
-        gdal_cmd = 'gdal_contour -b 1 -p -i '+interval_m+' -amax '+z_var+' '+filepath+tif_file+' '+filepath+out_file
-        if platform.system() == 'Windows':
-                gdal_cmd=gdal_cmd.replace('/','\\')
-        print('gdal cmd:',gdal_cmd)
-        os.system(gdal_cmd)
+
+        # shapefile with contour as lines
+        out_file_path = str(Path(filepath, f"{sessiontag}_bathy_shapefile-contourline-{tags}.shp"))
+        gdal_cmd = f'gdal_contour -b 1 -a {z_var} -i {interval_m} {raster_path} {out_file_path}'
+        print('COUNTOUR LINE gdal cmd:',gdal_cmd)
+        subprocess.call(gdal_cmd, shell=True)
+
+        # shapefile with contour as filled polygon
+        out_file_path = str(Path(filepath, f"{sessiontag}_bathy_shapefile-contourpoly-{tags}.shp"))
+        gdal_cmd = f'gdal_contour -b 1 -p -amax {z_var} -i {interval_m} {raster_path} {out_file_path}'
+        print('CONTOUR_POLY gdal cmd:',gdal_cmd)
+        subprocess.call(gdal_cmd, shell=True)
+
     except:
+        print(traceback.format_exc(), end="\n\n")
         print('\n--- WARNING ---')
         print('Problem occurs when generating shapefile with countours with gdal. Done nothing ...')
     print('Done ...')
@@ -847,12 +826,16 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
 
     # Write 3D object to .ply file
     print('\ninfo: Writing current shapes to ply file in :',filepath)
-    o3d.io.write_triangle_mesh(filepath+sessiontag+'_bathy_3dmodel-'+tags+'.ply', mesh, write_ascii=True)
+    ply_file_name = Path(BATHY_PATH, f'{sessiontag}_bathy_3dmodel-{tags}.ply')
+    o3d.io.write_triangle_mesh(str(ply_file_name), mesh, write_ascii=True)
+
+    # change , in . in .ply file if it exist
+    replace_comma_by_dot(ply_file_name)
     
     # time func execution
     print('func: exec time --> ',dt.datetime.now() - texec)
     
-    return df_grid
+    return cfg_prog
 
 def bathy_preproc_to_txt(bathy_preproc_path) :
     # Inputs :

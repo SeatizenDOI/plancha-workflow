@@ -121,3 +121,16 @@ Actually we have five header:
 - image number to be the first frame
 - filt_exclude_specific_timeUS
 - Bathy max depth
+
+# References
+
+- https://stackoverflow.com/questions/44005694/no-module-named-gdal
+
+## Ubuntu installation 22.04
+
+```bash
+conda create --name plancha_clean_env python=3.9
+conda activate plancha_clean_env
+
+pip install geocube ffmpeg-python open3d hatanaka wget PyExifTool transforms3d folium pymavlink pycountry pytz
+```
