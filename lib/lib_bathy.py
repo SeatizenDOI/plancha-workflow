@@ -29,7 +29,7 @@ from geocube.rasterize import rasterize_points_griddata
 
 from lib.lib_folium_maps import *
 from lib.lib_open3d_model import *
-from lib.lib_tools import replace_comma_by_dot, generate_waypoints_file
+from lib.lib_tools import replace_comma_by_dot, generate_waypoints_file, convert_GMS_GWk_to_UTC_time
 
 def clean_nullbyte_raw_log(log_path):
     # time func execution
@@ -165,12 +165,6 @@ def parse_raw_bin(log_path,cfg_prog):
     print('func: exec time --> ',dt.datetime.now() - texec)
 
     return dfdict
-
-def convert_GMS_GWk_to_UTC_time(gpsweek,gpsseconds,leapseconds=0):
-    datetimeformat = "%Y-%m-%d %H:%M:%S.%f"
-    epoch = dt.datetime.strptime("1980-01-06 00:00:00.000",datetimeformat)
-    elapsed = dt.timedelta(days=int((gpsweek*7)),seconds=int(gpsseconds+leapseconds))
-    return dt.datetime.strftime(epoch + elapsed,datetimeformat)
 
 def build_dataframe_gps(dfdict,cfg_prog, TXT_PATH):
     # time func execution
@@ -587,10 +581,13 @@ def plot_basic_bathy_data_2D(df, BATHY_PATH,fname='0'):
     fig2d.set_size_inches(sizes_inches,sizes_inches)
     fig2d.savefig(figpath,dpi=600)
 
-def write_mission_info(SESSION_INFO_PATH, df_gps):
+def write_mission_info(SESSION_INFO_PATH, start_wp, end_wp):
+    if start_wp == None or end_wp == None: 
+        print("func: Mission interval not found")
+        return
     session_info = pd.read_csv(SESSION_INFO_PATH)
-    session_info.insert(len(session_info.columns), "Mission_START", [df_gps.GPS_time.values[0]])
-    session_info.insert(len(session_info.columns), "Mission_END", [df_gps.GPS_time.values[-1]])
+    session_info.insert(len(session_info.columns), "Mission_START", [start_wp])
+    session_info.insert(len(session_info.columns), "Mission_END", [end_wp])
     session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
 
 
@@ -618,46 +615,36 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
             
     if not flag_log :
         print("\ninfo: We do not have a log file, please convert the bin to log")
-        return
+        return {}
     else:
         print("\n-- 3A of 6 : BATHIMETRY PROCESSING\n")
 
     print('\ninfo: Generate waypoints file from bin')
-    generate_waypoints_file(SENSORS_PATH, dfdict[cfg_prog["parse"]["gpskey"]], dfdict["MSG"])
+    start_wp, end_wp = generate_waypoints_file(SENSORS_PATH, dfdict[cfg_prog["parse"]["gpskey"]], dfdict["MSG"])
     
-    print('\ninfo: Build base dataframe from GPS')
-    
-    df = build_dataframe_gps(dfdict,cfg_prog, TXT_PATH)
+    print('\ninfo: Write start and end GPStime of the mission in session_info')
+    write_mission_info(SESSION_INFO_PATH, start_wp, end_wp)
 
+    print('\ninfo: Build base dataframe from GPS')
+    df = build_dataframe_gps(dfdict,cfg_prog, TXT_PATH)
     print('info: number of point in main dataframe : ', len(df))
+
     if (len(df) == 0): 
         print("No more points to analyze due to filtering")
         return df
-
-    print('\ninfo: Write start and end GPStime of the mission in session_info')
-    write_mission_info(SESSION_INFO_PATH, df)
-    
     print('info: GPS log starts >',df.GPS_time.values[0])
     print('info: GPS log ends   >',df.GPS_time.values[-1])
     
-    
-    ##### section : bathymetry pre-process ###
-    
     print('\ninfo: Estimate attitude at GPS positions')
-    
     df = calc_att_at_gps_coord(df,dfdict,cfg_prog)
-    
     print('info: number of point in main dataframe : ', len(df))
     
     print('\ninfo: Estimate raw depth at GPS positions')
-    
     df = calc_raw_depth_at_gps_coord(df,dfdict,cfg_prog)
-    
     print('info: number of point in main dataframe : ', len(df))
     
     print('\ninfo: Correct depth values')
     df = calc_ign_depth_at_gps_coord(df,dfdict,cfg_prog)
-    
     print('info: number of point in main dataframe : ', len(df))
     
     print('\ninfo: Save to file')

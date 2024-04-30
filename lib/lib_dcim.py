@@ -107,6 +107,10 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
     # Get metadata of frames
     with exiftool.ExifTool(common_args=[]) as et:
         json_frames_metadata = et.execute(*[f"-j", "-fileorder", "filename", FRAMES_PATH])
+
+    if json_frames_metadata == "":
+        print("No frames to write metadata")
+        return
     csv_exiftool_frames = pd.DataFrame.from_dict(json.loads(json_frames_metadata))
 
     # Get metadata of one video
@@ -262,8 +266,8 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
     # Remove frames outside mission 
     if remove_frames_outside_mission:
         csv_exiftool_frames = remove_outside_frames(csv_exiftool_frames, session_info, FRAMES_PATH)            
+
     print("\n-- 6 of 6 : IMPORT EXIF METADATA\n")
-    return
 
     texec = dt.datetime.now()
     with exiftool.ExifTool(common_args=[], config_file=exiftool_config_path) as et:

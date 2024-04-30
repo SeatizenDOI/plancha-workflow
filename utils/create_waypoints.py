@@ -11,6 +11,13 @@ import pandas as pd
 pd.set_option("display.precision", 20)
 import os
 import subprocess
+import datetime as dt
+
+def convert_GMS_GWk_to_UTC_time(gpsweek,gpsseconds,leapseconds=0):
+    datetimeformat = "%Y-%m-%d %H:%M:%S.%f"
+    epoch = dt.datetime.strptime("1980-01-06 00:00:00.000",datetimeformat)
+    elapsed = dt.timedelta(days=int((gpsweek*7)),seconds=int(gpsseconds+leapseconds))
+    return dt.datetime.strftime(epoch + elapsed,datetimeformat)
 
 def main():
 
@@ -44,8 +51,7 @@ def main():
         file_to_create = Path(sensor_folder, f"{session.name}_{file.stem}.waypoints")
 
         data = [["QGC WPL 110"]]
-        data = []
-
+        data, wp_datetime = [], []
 
         for _, row in df_msg.iterrows():
             if "WP" in row.Message :
@@ -56,11 +62,14 @@ def main():
 
                 data.append([idx, 0, 3, 16, 0, 0, 0, 0, lat, lon, 100, 1])
                 idx += 1
+
+                wp_datetime.append(convert_GMS_GWk_to_UTC_time(a.GWk,a.GMS/1000.0))
             
             elif "SetCamTrigDst" in row.Message:
                 data.append([idx, 0, 0, 206, 0, 0, 1, 0, 0, 0, 0, 1])
                 idx += 1
-        
+
+        start_wp, end_wp = wp_datetime[0], wp_datetime[-1]        
         d = pd.DataFrame(data)
         d.to_csv(file_to_create, sep="\t", index=False, header=False)
 

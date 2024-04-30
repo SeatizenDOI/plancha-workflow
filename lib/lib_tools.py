@@ -4,7 +4,7 @@ import pycountry
 import subprocess
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
+import datetime as dt
 
 def print_plancha_header():
     print("""
@@ -61,6 +61,12 @@ def clear_processed_session(frames_path, bathy_path, metadata_path, gps_base_pat
                 os.rmdir(item_path)
             elif not(item.endswith(".zip") or item.endswith(".gpx")):
                 os.remove(item_path)
+
+def convert_GMS_GWk_to_UTC_time(gpsweek,gpsseconds,leapseconds=0):
+    datetimeformat = "%Y-%m-%d %H:%M:%S.%f"
+    epoch = dt.datetime.strptime("1980-01-06 00:00:00.000",datetimeformat)
+    elapsed = dt.timedelta(days=int((gpsweek*7)),seconds=int(gpsseconds+leapseconds))
+    return dt.datetime.strftime(epoch + elapsed,datetimeformat)
 
 def replace_comma_by_dot(file_path):
     with open(file_path, 'r+') as f:
@@ -131,6 +137,7 @@ def gpx_to_llh(gpx_path):
     
     # Outputs :
     # The function saves a LLH file and a txt file with the same information of the gpx file in the same directory
+    print("func: Convert gpx file to llh file")
     data = []
     header = "GPSDateStamp,GPSTimeStamp,GPSLatitude,GPSLongitude,elevation,fix,nbsat,sdn,sde,sdu,sdne,sdeu,sdun,age,ratio".split(',')
     with open(gpx_path, "r") as file:
@@ -172,7 +179,7 @@ def get_hours_from_bin_sensors(SESSION_NAME, sensors_path):
     # Get utcoffset
     alpha3code = SESSION_NAME.split("_")[1].split('-')[0]
     alpha2code = pycountry.countries.get(alpha_3 = alpha3code).alpha_2
-    utcoffset = datetime.now(pytz.timezone(dict(pytz.country_timezones)[alpha2code][0])).utcoffset().seconds//3600
+    utcoffset = dt.datetime.now(pytz.timezone(dict(pytz.country_timezones)[alpha2code][0])).utcoffset().seconds//3600
 
     filebuf = './tmp.csv'
     for file in os.listdir(sensors_path):
@@ -188,8 +195,8 @@ def get_hours_from_bin_sensors(SESSION_NAME, sensors_path):
             os.remove(filebuf)
 
             # Parse timestamp.
-            first_hour = datetime.fromtimestamp(df.timestamp[0]).hour - utcoffset
-            last_hour = datetime.fromtimestamp(df.timestamp[len(df)-1]).hour + 1 - utcoffset
+            first_hour = dt.datetime.fromtimestamp(df.timestamp[0]).hour - utcoffset
+            last_hour = dt.datetime.fromtimestamp(df.timestamp[len(df)-1]).hour + 1 - utcoffset
             print("Hours found: ", first_hour, last_hour)
             return first_hour, last_hour
     return 0, 0
@@ -200,18 +207,21 @@ def generate_waypoints_file(sensors_path, df_gps, df_msg):
 
         QGC WPL <VERSION>
         <INDEX> <CURRENT WP> <COORD FRAME> <COMMAND> <PARAM1> <PARAM2> <PARAM3> <PARAM4> <PARAM5/X/LATITUDE> <PARAM6/Y/LONGITUDE> <PARAM7/Z/ALTITUDE> <AUTOCONTINUE>
+
+        Return start and end of the mission.
     """
     idx = 0
     sensors_path = Path(sensors_path)
     file_to_create = Path(sensors_path, f"{sensors_path.parent.name}_mission.waypoints")
 
-    data = []
+    data, wp_datetime = [], []
     for _, row in df_msg.iterrows():
         if "WP" in row.Message :
             a = df_gps[df_gps["timestamp"] <= row["timestamp"]].iloc[-1]
             b = df_gps[df_gps["timestamp"] >= row["timestamp"]].iloc[0]
             lat = (a["Lat"] + b["Lat"]) / 2
             lon = (a["Lng"] + b["Lng"]) / 2
+            wp_datetime.append(convert_GMS_GWk_to_UTC_time(a.GWk,a.GMS/1000.0))
 
             data.append([idx, 0, 3, 16, 0, 0, 0, 0, lat, lon, 1.0, 1])
             idx += 1
@@ -219,6 +229,10 @@ def generate_waypoints_file(sensors_path, df_gps, df_msg):
         elif "SetCamTrigDst" in row.Message:
             data.append([idx, 0, 0, 206, 0, 0, 1, 0, 0, 0, 0, 1])
             idx += 1
+
+    # No waypoint message found, don't create file
+    if len(wp_datetime) == 0 or len(data) == 0:
+        return None, None
     
     d = pd.DataFrame(data)
     d.to_csv(file_to_create, sep="\t", index=False, header=False)
@@ -227,3 +241,6 @@ def generate_waypoints_file(sensors_path, df_gps, df_msg):
         content = file.read()
         file.seek(0,0)
         file.write("QGC WPL 110\n" + content)
+    
+    
+    return wp_datetime[0], wp_datetime[-1] 

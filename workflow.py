@@ -7,6 +7,7 @@ import argparse
 import traceback
 import pandas as pd
 from pathlib import Path
+from datetime import datetime
 
 from lib.lib_dcim import *
 from lib.lib_bathy import *
@@ -193,7 +194,7 @@ def main(opt):
         
         finally:
             # Always write config in METADATA folder
-            print("\n\n-- Finally, save plancha_config.json")
+            print("\n-- Finally, save plancha_config.json\n")
             with open(Path(METADATA_PATH,'prog_config.json'), 'w') as fp:
                 json.dump(cfg_prog, fp,indent=3)
 
