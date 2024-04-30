@@ -15,7 +15,11 @@
       "leap_sec": "18",
       "_NB": "insert the date and time following the format YYYY:MM:DD HH:MM:SS.000",
       "_NB": "insert the time in UTC+0 format",
-      "time_first_frame_UTC": "2024:04:12 02:36:59.99"
+      "time_first_frame_UTC": "2024:04:12 02:36:59.99",
+      "_NB": "After split videos, session_name_1_{first_frame_to_keep} to match with time_first_frame_UTC. All previous frames are removed",
+      "first_frame_to_keep": 0,
+      "_NB": "Remove frames outside mission Keep frames unless mission interval isn't found",
+      "remove_frames_outside_mission": true
    },
 
    "path": {

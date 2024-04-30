@@ -1,3 +1,7 @@
+# 28/04/2024
+
+Remplacement de tous les os.system. Utilisation de fonction python ou appel avec subprocess
+
 # 09/04/2024
 
 Changement du module reach M2 sur ASV01 car l'ancien avait un problème avec le network. Tous les fichiers sont copiés sur un disque dur.

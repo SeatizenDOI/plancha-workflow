@@ -5,14 +5,37 @@
 </div>
 
 Ce dépôt permet de traiter les données récupérées par le projet [Plancha](https://ocean-indien.ifremer.fr/en/Projects/Technological-innovations/PLANCHA-2021-2023).
+
+Dans un premier temps, il faut centraliser les données brutes:
+- Vidéos sur la gopro
+- Se connecter à la Base, si on utilise un emlid RS2, pour récupérer le RINEX et le LLH. Si c'est les données d'une station RGP il faut le renseigner dans le fichier plancha_config.json
+- Se connecter au emlid M2 de la planche et récupérer le RINEX et le LLH
+- Fichier bin donné par la pixhawk
+
+Ensuite, il faut ranger les données brutes dans une arborescence de fichier comme celle-ci :
+
+```
+.
+├── DCIM : vidéo de la gopro
+├── GPS
+│   ├── BASE
+│   └── DEVICE
+├── METADATA
+├── PROCESSED_DATA
+│   ├── BATHY
+│   ├── FRAMES
+│   └── IA
+└── SENSORS
+```
+
+Ensuite il faut compléter le fichier plancha_config.
+
 Il découpe les vidéos en images et les géoréférence après avoir recalibré les positions GPS. 
 
 # Summary
 
 * [Installation](#installation)
 * [Plancha config file](#plancha-config-file)
-
-
 
 ## Installation
 
@@ -22,31 +45,12 @@ Il découpe les vidéos en images et les géoréférence après avoir recalibré
 
 At root folder :
 ```bash
-conda create --name plancha_env --file conda_env/linux_plancha_env.yml
-conda activate plancha_env
+conda create --name plancha_clean_env python=3.9
+conda activate plancha_clean_env
+
+pip install geocube ffmpeg-python open3d hatanaka wget PyExifTool transforms3d folium pymavlink pycountry pytz
 ```
 
-### CRX2RNX
-
-https://terras.gsi.go.jp/ja/crx2rnx.html
-
-
-### Tecq
-
-[Documentation link](https://www.unavco.org/software/data-processing/teqc/teqc.html)
-```bash
-cd /home/$USER/Téléchargements
-wget https://www.unavco.org/software/data-processing/teqc/development/teqc_CentOSLx86_64s.zip && unzip teqc_CentOSLx86_64s.zip
-sudo mv teqc /bin
-cd && teqc -version
-```
-
-Output:
-```bash
-executable:  teqc
-version:     teqc  2019Feb25
-build:       Linux 2.6.32-573.12.1.x86_64|x86_64|gcc -static|Linux 64|=+
-```
 
 ### ExifTool
 
@@ -121,16 +125,3 @@ Actually we have five header:
 - image number to be the first frame
 - filt_exclude_specific_timeUS
 - Bathy max depth
-
-# References
-
-- https://stackoverflow.com/questions/44005694/no-module-named-gdal
-
-## Ubuntu installation 22.04
-
-```bash
-conda create --name plancha_clean_env python=3.9
-conda activate plancha_clean_env
-
-pip install geocube ffmpeg-python open3d hatanaka wget PyExifTool transforms3d folium pymavlink pycountry pytz
-```

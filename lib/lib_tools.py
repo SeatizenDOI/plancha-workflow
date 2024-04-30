@@ -213,7 +213,7 @@ def generate_waypoints_file(sensors_path, df_gps, df_msg):
             lat = (a["Lat"] + b["Lat"]) / 2
             lon = (a["Lng"] + b["Lng"]) / 2
 
-            data.append([idx, 0, 3, 16, 0, 0, 0, 0, lat, lon, 100, 1])
+            data.append([idx, 0, 3, 16, 0, 0, 0, 0, lat, lon, 1.0, 1])
             idx += 1
         
         elif "SetCamTrigDst" in row.Message:

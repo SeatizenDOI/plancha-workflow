@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 
 
-PATH_TO_MERGE = "/home/bioeos/Documents/Bioeos/OUTPUT_DATA/all_csv_pred2/"
+PATH_TO_MERGE = "/home/bioeos/Documents/Bioeos/OUTPUT_DATA/stleu_matteo/"
 IA_NAME = "lombardata_DinoVdeau-large-2024_04_03-with_data_aug_batch-size32_epochs150_freeze"
 ROOT_FOLDERS = {
     "202210_plancha_session": "/media/bioeos/F/202210_plancha_session",

@@ -50,16 +50,42 @@ def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME):
     print(f"\nfunc: exec time --> {dt.datetime.now() - texec} sec")
     print("End of splitting videos\n")
 
-def remove_frames(FRAMES_PATH, max_frames):
+def remove_first_frames(FRAMES_PATH, max_frames):
+    if (max_frames <= 0): return
+
     print(f"-- Removing first frame")
     frame_path = Path(FRAMES_PATH)
     for frame in sorted(list(frame_path.iterdir())):
         video_number, frame_number = [int(a) for a in frame.stem.split("_")[4:]]
+        if max_frames < frame_number: break
+
         if video_number == 1 and frame_number < max_frames:
             print(f"Remove frame {frame}")
             frame.unlink()
 
         if video_number == 1 and max_frames == frame_number: break
+
+def remove_outside_frames(csv_exiftool_frames, session_info, FRAMES_PATH):
+    print("\n-- Remove frames before first waypoint and after last waypoint\n")
+
+    if "Mission_START" not in list(session_info) or "Mission_END" not in list(session_info) or "datetime_unix" not in csv_exiftool_frames:
+        print("[WARNING] Mission interval wasn't found, no filtering.")
+        return csv_exiftool_frames
+
+    # Get unix_timestamp.
+    start_wp = pd.to_datetime(session_info["Mission_START"].iloc[0])
+    end_wp = pd.to_datetime(session_info["Mission_END"].iloc[0])
+    csv_exiftool_frames = csv_exiftool_frames[pd.to_datetime(csv_exiftool_frames["SubSecDateTimeOriginal_np"]) >= start_wp]
+    csv_exiftool_frames = csv_exiftool_frames[pd.to_datetime(csv_exiftool_frames["SubSecDateTimeOriginal_np"]) <= end_wp]
+
+    list_frames, cpt_frames = list(csv_exiftool_frames["FileName"]), 0
+    # Remove outside frames.
+    for frame in Path(FRAMES_PATH).iterdir():
+        if frame.name not in list_frames:
+            cpt_frames += 1
+            frame.unlink()
+    print(f"func: {cpt_frames} frames have been deleted.")
+    return csv_exiftool_frames
 
 def write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, leap_sec):
     print("\n-- Writing session info in csv file\n")
@@ -74,7 +100,7 @@ def write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, l
     session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
     return
 
-def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, BATHY_PATH, METADATA_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH):
+def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, BATHY_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH, remove_frames_outside_mission):
 
     print("\n-- 3B of 6 : EXPORT VIDEO & FRAME METADATA TO CSV\n")
 
@@ -111,7 +137,7 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
     useful_video_metadata_values = csv_exiftool_video.iloc[0]
     # write video's metadata to frame csv
     for i in range(len(video_intersection_list)):
-        csv_exiftool_frames[video_intersection_list[i]] = useful_video_metadata_values[i]
+        csv_exiftool_frames[video_intersection_list[i]] = useful_video_metadata_values.iloc[i]
     # concat session_info csv and csv_exiftool_video csv
     session_info = pd.read_csv(SESSION_INFO_PATH)
     session_info = pd.concat([session_info, csv_exiftool_video], axis=1)
@@ -211,6 +237,12 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
         csv_bathy_preproc['datetime_unix'] = (csv_bathy_preproc['GPS_time'] - pd.Timestamp("1970-01-01")) // pd.Timedelta("1ns")
         csv_bathy_preproc['datetime_unix'] = csv_bathy_preproc['datetime_unix'].values.astype('int64')
 
+        # Before interpolate, we need to transform roll pitch yaw value if video was rotate. Ironically, video is rotate when autorotation value is Up
+        if "AutoRotation" in csv_exiftool_video and csv_exiftool_video["AutoRotation"].iloc[0] == "Up":
+            csv_bathy_preproc['GPSRoll'] *= -1
+            csv_bathy_preproc['GPSPitch'] *= -1
+            csv_bathy_preproc['GPSTrack'] = (csv_bathy_preproc['GPSTrack'] + 180) % 360
+
         csv_exiftool_frames['XMP:GPSRoll'] = np.interp(csv_exiftool_frames['datetime_unix'], csv_bathy_preproc['datetime_unix'], csv_bathy_preproc['GPSRoll'])
         csv_exiftool_frames['XMP:GPSPitch'] = np.interp(csv_exiftool_frames['datetime_unix'], csv_bathy_preproc['datetime_unix'], csv_bathy_preproc['GPSPitch'])
         csv_exiftool_frames['XMP:GPSTrack'] = np.interp(csv_exiftool_frames['datetime_unix'], csv_bathy_preproc['datetime_unix'], csv_bathy_preproc['GPSTrack'])
@@ -223,10 +255,15 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
     if "FieldOfView" in csv_exiftool_frames and csv_exiftool_frames['FieldOfView'][0] == "Linear" :
         csv_exiftool_frames['EXIF:FocalLength'] = "2.92"
         csv_exiftool_frames["EXIF:FocalLengthIn35mmFormat"] = "15"
-
-    print("\n-- 6 of 6 : IMPORT EXIF METADATA\n")
+    
     # save frame csv, before import metadata
     csv_exiftool_frames.to_csv(CSV_EXIFTOOL_FRAMES, index=False) 
+
+    # Remove frames outside mission 
+    if remove_frames_outside_mission:
+        csv_exiftool_frames = remove_outside_frames(csv_exiftool_frames, session_info, FRAMES_PATH)            
+    print("\n-- 6 of 6 : IMPORT EXIF METADATA\n")
+    return
 
     texec = dt.datetime.now()
     with exiftool.ExifTool(common_args=[], config_file=exiftool_config_path) as et:
@@ -251,7 +288,6 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
         if col in keep_param_list and col not in intersection_list:
             intersection_list.append(col)
 
-    print(list(csv_exiftool_frames), intersection_list)
     # Remove Exif: or XMP: in metadata.csv
     csv_exiftool_frames = csv_exiftool_frames.rename((lambda col : col.split(':')[1] if ':' in col else col), axis='columns') 
     # filter df

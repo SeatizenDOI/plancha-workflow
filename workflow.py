@@ -49,7 +49,7 @@ def main(opt):
     listSessionFirstFrame = [[
         cfg_prog['session_info']['session_name'], 
         str(cfg_prog['dcim']['time_first_frame_UTC']), 
-        2, 
+        int(cfg_prog['dcim']['first_frame_to_keep']), 
         str(cfg_prog['gps']['filt_exclude_specific_timeUS']), 
         default_max_depth,
         default_min_depth
@@ -72,7 +72,9 @@ def main(opt):
     frames_per_second = cfg_prog['dcim']['frames_per_second']
     a, b = [float(i) for i in frames_per_second.split('/')] if "/" in frames_per_second else (float(frames_per_second), 1)
     delta_time = str(1/(a/b))
-    exiftool_config_path = "./exiftool_roll_pitch_config_file.config"
+    exiftool_config_path = cfg_prog['dcim']['exiftool_config_path']
+    remove_frames_outside_mission = cfg_prog['dcim']['remove_frames_outside_mission']
+
 
     # for the leap second definition please refer to : https://fr.wikipedia.org/wiki/Synchronisation_GPS
     leap_sec = int(cfg_prog['dcim']['leap_sec'])
@@ -83,7 +85,7 @@ def main(opt):
     # flag for force rgp station
     cfg_prog['gps']['force_use_rgp'] = True if cfg_prog['gps']['force_use_rgp'] else opt.force_use_rgp
     
-    # Init some  variables to monitoring
+    # Init some variables to monitoring
     session_name_fails = []
     # Go over all file from session_csv
     for session_name, time_first_frame, number_first_frame, filt_exclude_specific_timeUS, depth_range_max, depth_range_min in listSessionFirstFrame:
@@ -93,6 +95,7 @@ def main(opt):
             # Change session_name in cfg_prog else we have bad name
             cfg_prog['session_info']['session_name'] = session_name 
             cfg_prog['dcim']['time_first_frame_UTC'] = time_first_frame
+            cfg_prog['dcim']['first_frame_to_keep'] = int(opt.remove_frames) if opt.remove_frames and opt.remove_frames.isnumeric() else number_first_frame # Override
 
             # derived paths and parameters
             SESSION_PATH = os.path.join(ROOT, session_name)
@@ -133,11 +136,11 @@ def main(opt):
             if not opt.no_split:
                 split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, session_name)
             
-            if opt.remove_frames and opt.remove_frames.isnumeric():
-                remove_frames(FRAMES_PATH, int(opt.remove_frames))
-            
             ### We just want to split videos so we continue
             if opt.only_split: continue
+            
+            ### Remove frames
+            remove_first_frames(FRAMES_PATH, int(cfg_prog['dcim']['first_frame_to_keep']))
 
             ### Add specific filtering interval values
             if filt_exclude_specific_timeUS != "":
@@ -163,7 +166,8 @@ def main(opt):
             if not opt.no_bathy:
                 try:
                     df_bathy = run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INFO_PATH)
-                    cfg_prog = run_bathy_postprocessing(df_bathy, cfg_prog, BATHY_PATH)                            
+                    if len(df_bathy) != 0:
+                        cfg_prog = run_bathy_postprocessing(df_bathy, cfg_prog, BATHY_PATH)                            
                 
                 except Exception:
                     print(traceback.format_exc(), end="\n\n")
@@ -173,7 +177,7 @@ def main(opt):
 
             ### compute and add metadata to frames
             if not opt.no_annotate:
-                time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, BATHY_PATH, METADATA_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH)
+                time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, BATHY_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH, remove_frames_outside_mission)
         
         
         except Exception:

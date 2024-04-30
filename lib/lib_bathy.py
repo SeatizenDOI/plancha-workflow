@@ -629,13 +629,17 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
     
     df = build_dataframe_gps(dfdict,cfg_prog, TXT_PATH)
 
+    print('info: number of point in main dataframe : ', len(df))
+    if (len(df) == 0): 
+        print("No more points to analyze due to filtering")
+        return df
+
     print('\ninfo: Write start and end GPStime of the mission in session_info')
     write_mission_info(SESSION_INFO_PATH, df)
     
     print('info: GPS log starts >',df.GPS_time.values[0])
     print('info: GPS log ends   >',df.GPS_time.values[-1])
     
-    print('info: number of point in main dataframe : ', len(df))
     
     ##### section : bathymetry pre-process ###
     
