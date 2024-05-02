@@ -59,6 +59,7 @@ def main(opt):
     if opt.csv != None and os.path.exists(opt.csv):
         with open(opt.csv, "r") as csvfile:
             spamreader = csv.reader(csvfile, delimiter=',')
+            header = next(spamreader, None)
             listSessionFirstFrame = [row if len(row) == DEFAULT_SIZE else row + [""] * (DEFAULT_SIZE - len(row)) for row in spamreader]
 
     ROOT = cfg_prog['session_info']['root']
@@ -85,7 +86,7 @@ def main(opt):
     flag_rtkfix =  cfg_prog['gps']['filt_rtkfix']
     # flag for force rgp station
     cfg_prog['gps']['force_use_rgp'] = True if cfg_prog['gps']['force_use_rgp'] else opt.force_use_rgp
-    
+
     # Init some variables to monitoring
     session_name_fails = []
     # Go over all file from session_csv

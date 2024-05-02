@@ -8,76 +8,86 @@
 
 from pathlib import Path
 import pandas as pd
-pd.set_option("display.precision", 20)
 import os
 import subprocess
-import datetime as dt
+import traceback
 
-def convert_GMS_GWk_to_UTC_time(gpsweek,gpsseconds,leapseconds=0):
-    datetimeformat = "%Y-%m-%d %H:%M:%S.%f"
-    epoch = dt.datetime.strptime("1980-01-06 00:00:00.000",datetimeformat)
-    elapsed = dt.timedelta(days=int((gpsweek*7)),seconds=int(gpsseconds+leapseconds))
-    return dt.datetime.strftime(epoch + elapsed,datetimeformat)
-
-def main():
-
-    session = Path("/media/bioeos/F/202404_plancha_session/20240419_REU-TROUDEAU_ASV-1_01/")
+def update_session(session):
     
     if not Path.exists(session):
-        print(f"Session Not found")
-        return
+        raise NameError("Session Not found")
+
     
     sensor_folder = Path(session, "SENSORS")
     if not Path.exists(sensor_folder):
-        print(f"SENSORS folder not found")
-        return
+        raise NameError("SENSORS folder not found")
+
 
     filebuf = './tmp.csv'
     for file in sensor_folder.iterdir():
-        if file.suffix != ".BIN": continue
+        if file.suffix.upper() != ".BIN": continue
 
         tmp_cmd = "python ../lib/mavlogdump.py --planner --format csv --type MSG "+str(file)+" > "+filebuf
         subprocess.call(tmp_cmd, shell=True)
-        df_msg = pd.read_csv(filebuf, sep=";")
-
-        tmp_cmd = "python ../lib/mavlogdump.py --planner --format csv --type GPS "+str(file)+" > "+filebuf
-        subprocess.call(tmp_cmd, shell=True)
-        df_gps = pd.read_csv(filebuf, sep=";")
-
+        df_cmd = pd.read_csv(filebuf, sep=";")
+        print(df_cmd)
         # Read csv and remove file buffer.
-        os.remove(filebuf)
+        # os.remove(filebuf)
 
-        idx = 0
-        file_to_create = Path(sensor_folder, f"{session.name}_{file.stem}.waypoints")
+        # file_to_create = Path(sensor_folder, f"{session.name}_{file.stem}.waypoints")
+        # data = []
 
-        data = [["QGC WPL 110"]]
-        data, wp_datetime = [], []
+        # for index, row in df_cmd.iterrows(): 
+        #     data.append([
+        #         index, 0, int(row.Frame), int(row.CId), 
+        #         int(row.Prm1), int(row.Prm2), int(row.Prm3), int(row.Prm4), 
+        #         row.Lat, row.Lng, row.Alt, 1
+        #     ])
 
-        for _, row in df_msg.iterrows():
-            if "WP" in row.Message :
-                a = df_gps[df_gps["timestamp"] <= row["timestamp"]].iloc[-1]
-                b = df_gps[df_gps["timestamp"] >= row["timestamp"]].iloc[0]
-                lat = (a["Lat"] + b["Lat"]) / 2
-                lon = (a["Lng"] + b["Lng"]) / 2
+        # d = pd.DataFrame(data)
+        # d.to_csv(file_to_create, sep="\t", index=False, header=False)
 
-                data.append([idx, 0, 3, 16, 0, 0, 0, 0, lat, lon, 100, 1])
-                idx += 1
+        # with open(file_to_create, "r+") as file:
+        #     content = file.read()
+        #     file.seek(0,0)
+        #     file.write("QGC WPL 110\n" + content)
 
-                wp_datetime.append(convert_GMS_GWk_to_UTC_time(a.GWk,a.GMS/1000.0))
-            
-            elif "SetCamTrigDst" in row.Message:
-                data.append([idx, 0, 0, 206, 0, 0, 1, 0, 0, 0, 0, 1])
-                idx += 1
+def main():
+    root_folders = [
+        "/media/bioeos/F/202210_plancha_session",
+        "/media/bioeos/E/202211_plancha_session",
+        
+        "/media/bioeos/F/202301-07_plancha_session",
+        "/media/bioeos/F/202305_plancha_session",
 
-        start_wp, end_wp = wp_datetime[0], wp_datetime[-1]        
-        d = pd.DataFrame(data)
-        d.to_csv(file_to_create, sep="\t", index=False, header=False)
+        "/media/bioeos/E/202309_plancha_session",
+        "/media/bioeos/E/202310_plancha_session",
+        "/media/bioeos/D/202311_plancha_session",
+        "/media/bioeos/D/202312_plancha_session",
 
-        with open(file_to_create, "r+") as file:
-            content = file.read()
-            file.seek(0,0)
-            file.write("QGC WPL 110\n" + content)
-
+        "/media/bioeos/F/202403_plancha_session",
+        "/media/bioeos/F/202404_plancha_session",
+    ]
+    cpt = 0
+    session_failed = []
+    for root in root_folders:
+        root = Path(root)
+        if not Path.exists(root) or not root.is_dir():
+            print(f"Root folders not found {root}")
+            continue
+        
+        for session in root.iterdir():
+            try:
+                update_session(session)
+            except:
+                print(traceback.format_exc(), end="\n\n")
+                session_failed.append(session_failed)
+    
+            cpt += 1
+    # Stat
+    print("End of process. On {} sessions, {} fails. ".format(cpt, len(session_failed)))
+    if (len(session_failed)):
+        [print("\t* " + session_name) for session_name in session_failed]
 
 if __name__ == "__main__":
-    main()
+    update_session(Path("/home/bioeos/Documents/Bioeos/plancha-session/20231204_REU-TROUDEAU_ASV-2_01/"))

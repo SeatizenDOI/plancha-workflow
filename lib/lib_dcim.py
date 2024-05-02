@@ -75,6 +75,16 @@ def remove_outside_frames(csv_exiftool_frames, session_info, FRAMES_PATH):
     # Get unix_timestamp.
     start_wp = pd.to_datetime(session_info["Mission_START"].iloc[0])
     end_wp = pd.to_datetime(session_info["Mission_END"].iloc[0])
+
+    # To avoid remove all frames on disfunction, we check if last frame is not before mission start or first frame after mission end.
+    isAllFramesBeforeMissionStart = pd.to_datetime(csv_exiftool_frames["SubSecDateTimeOriginal_np"].iloc[-1]) < start_wp
+    isAllFramesAfterMissionEnd = pd.to_datetime(csv_exiftool_frames["SubSecDateTimeOriginal_np"].iloc[0]) > end_wp
+
+    if isAllFramesBeforeMissionStart or isAllFramesAfterMissionEnd: 
+        print("func: Frames are not in mission interval, to avoid remove all frames, done nothing")
+        return csv_exiftool_frames
+
+    # Filter.
     csv_exiftool_frames = csv_exiftool_frames[pd.to_datetime(csv_exiftool_frames["SubSecDateTimeOriginal_np"]) >= start_wp]
     csv_exiftool_frames = csv_exiftool_frames[pd.to_datetime(csv_exiftool_frames["SubSecDateTimeOriginal_np"]) <= end_wp]
 
@@ -278,7 +288,7 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
     col_names = csv_exiftool_frames.columns
     # EXIF metadata we want to keep, please check :
     # https://docs.google.com/spreadsheets/d/1iSKDvFrh-kP9wOU9bt9H7lcZKOnF7pe9n-8t15pOrmw/edit?usp=sharing
-    keep_param_list = ["ApertureValue", "Compression", "Contrast", "CreateDate", "DateCreated", "DateTimeDigitized", "DateTimeOriginal", "DigitalZoomRatio", "ExifImageHeight", "ExifImageWidth", 
+    keep_param_list = ["ApertureValue", "Compression", "Contrast", "CreateDate", "DateCreated", "DateTimeDigitized", "DigitalZoomRatio", "ExifImageHeight", "ExifImageWidth", 
                         "ExifToolVersion", "ExifVersion", "ExposureCompensation", "ExposureMode", "ExposureProgram", "FileName", "FileSize", "FileType", "FileTypeExtension", "FNumber", 
                         "FocalLength", "FocalLength35efl", "FocalLengthIn35mmFormat", "FOV", "GPSAltitude", "GPSAltitudeRef", "GPSDateTime", "GPSDate", "GPSTime", "GPSLatitude", "GPSLongitude",
                         "GPSMapDatum", "GPSPosition", "GPSTimeStamp", "GPSRoll", "GPSPitch", "GPSTrack", "ImageHeight", "ImageWidth", "LightValue", "Make", "MaxApertureValue", 

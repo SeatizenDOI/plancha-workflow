@@ -29,7 +29,7 @@ from geocube.rasterize import rasterize_points_griddata
 
 from lib.lib_folium_maps import *
 from lib.lib_open3d_model import *
-from lib.lib_tools import replace_comma_by_dot, generate_waypoints_file, convert_GMS_GWk_to_UTC_time
+from lib.lib_tools import replace_comma_by_dot, generate_theorique_waypoints_file, convert_GMS_GWk_to_UTC_time, write_real_mission_interval
 
 def clean_nullbyte_raw_log(log_path):
     # time func execution
@@ -67,7 +67,7 @@ def parse_raw_log(log_path,cfg_prog):
     # Status list (fixed)
     # DEBUG !!! (MJULIEN --> Suppres MSG from parsed lines, causes bug on some log files)
     # status_list=['MODE','ARM']
-    status_list=['MODE','ARM','MSG']
+    status_list=['MODE','ARM','MSG', 'CMD']
     
     # Read mandatory params from config dict
     param_list=[cfg_parse['gpskey'] , # mandatory
@@ -132,7 +132,7 @@ def parse_raw_bin(log_path,cfg_prog):
     cfg_parse = cfg_prog['parse']
     
     # Status list (fixed)
-    status_list=['MODE','ARM','MSG']
+    status_list=['MODE','ARM','MSG', 'CMD']
     
     # Read mandatory params from config dict
     param_list=[cfg_parse['gpskey'] , # mandatory
@@ -581,16 +581,6 @@ def plot_basic_bathy_data_2D(df, BATHY_PATH,fname='0'):
     fig2d.set_size_inches(sizes_inches,sizes_inches)
     fig2d.savefig(figpath,dpi=600)
 
-def write_mission_info(SESSION_INFO_PATH, start_wp, end_wp):
-    if start_wp == None or end_wp == None: 
-        print("func: Mission interval not found")
-        return
-    session_info = pd.read_csv(SESSION_INFO_PATH)
-    session_info.insert(len(session_info.columns), "Mission_START", [start_wp])
-    session_info.insert(len(session_info.columns), "Mission_END", [end_wp])
-    session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
-
-
 def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INFO_PATH):
     
     ##### section : load data ###
@@ -620,10 +610,10 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
         print("\n-- 3A of 6 : BATHIMETRY PROCESSING\n")
 
     print('\ninfo: Generate waypoints file from bin')
-    start_wp, end_wp = generate_waypoints_file(SENSORS_PATH, dfdict[cfg_prog["parse"]["gpskey"]], dfdict["MSG"])
+    generate_theorique_waypoints_file(SENSORS_PATH, dfdict["CMD"])
     
     print('\ninfo: Write start and end GPStime of the mission in session_info')
-    write_mission_info(SESSION_INFO_PATH, start_wp, end_wp)
+    write_real_mission_interval(SESSION_INFO_PATH, dfdict[cfg_prog["parse"]["gpskey"]], dfdict["MSG"])
 
     print('\ninfo: Build base dataframe from GPS')
     df = build_dataframe_gps(dfdict,cfg_prog, TXT_PATH)

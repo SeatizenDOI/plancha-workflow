@@ -201,38 +201,26 @@ def get_hours_from_bin_sensors(SESSION_NAME, sensors_path):
             return first_hour, last_hour
     return 0, 0
 
-def generate_waypoints_file(sensors_path, df_gps, df_msg):
+def generate_theorique_waypoints_file(sensors_path, df_cmd):
     """
         Create a waypoints file from a BIN file.
 
         QGC WPL <VERSION>
         <INDEX> <CURRENT WP> <COORD FRAME> <COMMAND> <PARAM1> <PARAM2> <PARAM3> <PARAM4> <PARAM5/X/LATITUDE> <PARAM6/Y/LONGITUDE> <PARAM7/Z/ALTITUDE> <AUTOCONTINUE>
-
-        Return start and end of the mission.
     """
-    idx = 0
+    
     sensors_path = Path(sensors_path)
     file_to_create = Path(sensors_path, f"{sensors_path.parent.name}_mission.waypoints")
+    data = []
 
-    data, wp_datetime = [], []
-    for _, row in df_msg.iterrows():
-        if "WP" in row.Message :
-            a = df_gps[df_gps["timestamp"] <= row["timestamp"]].iloc[-1]
-            b = df_gps[df_gps["timestamp"] >= row["timestamp"]].iloc[0]
-            lat = (a["Lat"] + b["Lat"]) / 2
-            lon = (a["Lng"] + b["Lng"]) / 2
-            wp_datetime.append(convert_GMS_GWk_to_UTC_time(a.GWk,a.GMS/1000.0))
+    for index, row in df_cmd.iterrows():
+        if index == 0: continue # Dismiss homepoint
 
-            data.append([idx, 0, 3, 16, 0, 0, 0, 0, lat, lon, 1.0, 1])
-            idx += 1
-        
-        elif "SetCamTrigDst" in row.Message:
-            data.append([idx, 0, 0, 206, 0, 0, 1, 0, 0, 0, 0, 1])
-            idx += 1
-
-    # No waypoint message found, don't create file
-    if len(wp_datetime) == 0 or len(data) == 0:
-        return None, None
+        data.append([
+            index-1, 0, int(row.Frame), int(row.CId), 
+            int(row.Prm1), int(row.Prm2), int(row.Prm3), int(row.Prm4), 
+            row.Lat, row.Lng, row.Alt, 1
+        ])
     
     d = pd.DataFrame(data)
     d.to_csv(file_to_create, sep="\t", index=False, header=False)
@@ -241,6 +229,25 @@ def generate_waypoints_file(sensors_path, df_gps, df_msg):
         content = file.read()
         file.seek(0,0)
         file.write("QGC WPL 110\n" + content)
+
+    return None, None
+
+def write_real_mission_interval(SESSION_INFO_PATH, df_gps, df_msg):
+    wp_datetime = []
+    for _, row in df_msg.iterrows():
+        if "Reached waypoint" not in row.Message: continue
+
+        a = df_gps[df_gps["timestamp"] <= row["timestamp"]].iloc[-1] # Get the nearest gps position
+        wp_datetime.append(convert_GMS_GWk_to_UTC_time(a.GWk,a.GMS/1000.0))
+
+    if len(wp_datetime) == 0:
+        print("func: Mission interval not found")
+        return
     
-    
-    return wp_datetime[0], wp_datetime[-1] 
+    start_wp, end_wp = wp_datetime[0], wp_datetime[-1]
+
+    # Write information in session_info
+    session_info = pd.read_csv(SESSION_INFO_PATH)
+    session_info.insert(len(session_info.columns), "Mission_START", [start_wp])
+    session_info.insert(len(session_info.columns), "Mission_END", [end_wp])
+    session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
