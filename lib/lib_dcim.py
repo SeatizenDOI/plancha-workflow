@@ -9,6 +9,47 @@ from pathlib import Path
 
 from lib.lib_bathy import bathy_preproc_to_txt
 
+def get_dcim_type(VIDEOS_PATH):
+    """ Return 1 if have video, 0 if have image, -1 if other or nothing """
+    VIDEOS_PATH = Path(VIDEOS_PATH)
+
+    if not Path.exists(VIDEOS_PATH) or not VIDEOS_PATH.is_dir() :
+        print("The following path does not exist : ", VIDEOS_PATH)
+        return
+    
+    list_files_in_video_path = sorted(list(VIDEOS_PATH.iterdir()))
+    if len(list_files_in_video_path) == 0: return -1 
+
+    is_only_frames = False
+    for file in list_files_in_video_path:
+        if file.suffix.lower() in [".mp4"]: return 1
+        if file.suffix.lower() in [".jpg", ".jpeg"]: is_only_frames = True
+    
+    return 0 if is_only_frames else -1
+
+def get_frame_per_second_for_image(FRAMES_PATH):
+    """ Return str frame_per_second else 1 """
+    FRAMES_PATH = Path(FRAMES_PATH)
+
+    if not Path.exists(FRAMES_PATH) or not FRAMES_PATH.is_dir():
+        print("The following path does not exist : ", FRAMES_PATH)
+        return
+    frame_per_second_str, fps = "", 1
+    for file in FRAMES_PATH.iterdir():
+        if file.suffix.lower() not in [".jpg", ".jpeg"]: continue
+        with exiftool.ExifToolHelper() as et:
+            json_frame_metadata = et.get_metadata(file)[0]
+        
+            for key in (json_frame_metadata):
+                if "rate" in key.lower():
+                    frame_per_second_str = json_frame_metadata[key]
+                    break
+        break
+    if frame_per_second_str != "" and "SEC" in frame_per_second_str:
+        a, b = [int(i) for i in frame_per_second_str.replace("SEC", "").split("_")]
+        fps = a if a > b else a / b # 4_1SEC = 4fps and 1_2SEC = O.5fps
+        
+    return str(fps) 
 
 def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME):
     count_video = 0
@@ -110,48 +151,52 @@ def write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, l
     session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
     return
 
-def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, BATHY_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH, remove_frames_outside_mission):
+def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, remove_frames_outside_mission,
+                                RELATIVE_PATH, BATHY_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH):
 
     print("\n-- 3B of 6 : EXPORT VIDEO & FRAME METADATA TO CSV\n")
 
     # Get metadata of frames
-    with exiftool.ExifTool(common_args=[]) as et:
+    with exiftool.ExifTool(common_args=["-n"]) as et:
         json_frames_metadata = et.execute(*[f"-j", "-fileorder", "filename", FRAMES_PATH])
 
     if json_frames_metadata == "":
         print("No frames to write metadata")
         return
+    
     csv_exiftool_frames = pd.DataFrame.from_dict(json.loads(json_frames_metadata))
 
     # Get metadata of one video
-    VIDEOS_PATH = Path(VIDEOS_PATH)
-    if not Path.exists(VIDEOS_PATH) or not VIDEOS_PATH.is_dir() :
-        print("The following path does not exist : ", VIDEOS_PATH)
-        return
-    
-    file_path = None
-    for file in VIDEOS_PATH.iterdir():
-        if file.suffix.lower() == ".mp4": 
-            file_path = file 
-            break   
+    csv_exiftool_video = pd.DataFrame()
+    if VIDEOS_PATH != FRAMES_PATH:
+        VIDEOS_PATH = Path(VIDEOS_PATH)
+        if not Path.exists(VIDEOS_PATH) or not VIDEOS_PATH.is_dir() :
+            print("The following path does not exist : ", VIDEOS_PATH)
+            return
+        
+        file_path = None
+        for file in VIDEOS_PATH.iterdir():
+            if file.suffix.lower() == ".mp4": 
+                file_path = file 
+                break   
 
-    if file_path == None:
-        print(f"No video file found for extracting metadata")
-    
-    with exiftool.ExifToolHelper(common_args=[]) as et:
-        metadata = et.get_metadata(file_path)
+        if file_path == None:
+            print(f"No video file found for extracting metadata")
+        
+        with exiftool.ExifToolHelper(common_args=[]) as et:
+            metadata = et.get_metadata(file_path)
 
-    csv_exiftool_video = pd.DataFrame(metadata)
+        csv_exiftool_video = pd.DataFrame(metadata)
 
-    # filter video metadata
-    useful_video_metadata_names =  ['LensSerialNumber', 'CameraSerialNumber', 'Model', 'AutoRotation', 'DigitalZoom', 'ProTune', 'WhiteBalance', 'Sharpness', 'ColorMode', 'MaximumShutterAngle', 'AutoISOMax', 'AutoISOMin', 'ExposureCompensation', 'Rate', 'FieldOfView', 'ElectronicImageStabilization', 'ImageWidth', 'ImageHeight', 'SourceImageHeight', 'XResolution', 'VideoFrameRate', 'ImageSize', 'Megapixels', 'AvgBitrate']
-    video_col_names = csv_exiftool_video.columns
-    video_intersection_list = list(set(video_col_names) & set(useful_video_metadata_names))
-    csv_exiftool_video = csv_exiftool_video[video_intersection_list]
-    useful_video_metadata_values = csv_exiftool_video.iloc[0]
-    # write video's metadata to frame csv
-    for i in range(len(video_intersection_list)):
-        csv_exiftool_frames[video_intersection_list[i]] = useful_video_metadata_values.iloc[i]
+        # filter video metadata
+        useful_video_metadata_names =  ['LensSerialNumber', 'CameraSerialNumber', 'Model', 'AutoRotation', 'DigitalZoom', 'ProTune', 'WhiteBalance', 'Sharpness', 'ColorMode', 'MaximumShutterAngle', 'AutoISOMax', 'AutoISOMin', 'ExposureCompensation', 'Rate', 'FieldOfView', 'ElectronicImageStabilization', 'ImageWidth', 'ImageHeight', 'SourceImageHeight', 'XResolution', 'VideoFrameRate', 'ImageSize', 'Megapixels', 'AvgBitrate']
+        video_col_names = csv_exiftool_video.columns
+        video_intersection_list = list(set(video_col_names) & set(useful_video_metadata_names))
+        csv_exiftool_video = csv_exiftool_video[video_intersection_list]
+        useful_video_metadata_values = csv_exiftool_video.iloc[0]
+        # write video's metadata to frame csv
+        for i in range(len(video_intersection_list)):
+            csv_exiftool_frames[video_intersection_list[i]] = useful_video_metadata_values.iloc[i]
     # concat session_info csv and csv_exiftool_video csv
     session_info = pd.read_csv(SESSION_INFO_PATH)
     session_info = pd.concat([session_info, csv_exiftool_video], axis=1)
@@ -310,6 +355,8 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
     csv_exiftool_frames.dropna(axis=1,inplace=True)
     # delete all zero columns
     csv_exiftool_frames = csv_exiftool_frames.loc[:, (csv_exiftool_frames != 0).any(axis=0)]
+    # add relative path
+    csv_exiftool_frames["relative_file_path"] = csv_exiftool_frames["FileName"].apply(lambda x : str(Path(RELATIVE_PATH, x)))
     # sort metadata columns by name
     csv_exiftool_frames = csv_exiftool_frames.sort_index(axis=1)
     # save filtered frame csv, after import metadata

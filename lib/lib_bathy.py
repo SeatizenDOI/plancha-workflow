@@ -585,11 +585,7 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
     
     ##### section : load data ###
     flag_log, dfdict = 0, {}
-    # list log files in folder
-    file_list = os.listdir(SENSORS_PATH)
-    # reverse list to check .LOG before .BIN (alphabetic order)
-    file_list.reverse()
-    for file in file_list :
+    for file in os.listdir(SENSORS_PATH) :
         if file.endswith("log") or file.endswith("LOG") :
             log_path = SENSORS_PATH + "/" + file
             print('\ninfo: Loadind autopilot data :', log_path)
@@ -604,7 +600,7 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
             break
             
     if not flag_log :
-        print("\ninfo: We do not have a log file, please convert the bin to log")
+        print("\ninfo: We do not have a log file or bin file. Abort bathy processing")
         return {}
     else:
         print("\n-- 3A of 6 : BATHIMETRY PROCESSING\n")

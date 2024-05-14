@@ -26,6 +26,7 @@ def parse_option():
     parser.add_argument("-frgp", "--force_use_rgp", action="store_true", help="Force to use RGP station to compute base gps")
     parser.add_argument("-rp", "--root_path", default=None, help="Root path for the session")
     parser.add_argument("-rf", "--remove_frames", default=None, help="Remove frames until meet the number")
+    parser.add_argument("-pcn", "--plancha_config_path", default=None, help="Path to the plancha config file to use")
 
 
     return parser.parse_args()
@@ -34,7 +35,8 @@ def main(opt):
     print_plancha_header()
 
     # Open json file with config of the session
-    with open('./plancha_config/plancha_config.json') as json_file:
+    default_plancha_config = opt.plancha_config_path if opt.plancha_config_path != None else "./plancha_config/plancha_config.json"
+    with open(default_plancha_config) as json_file:
         cfg_prog = json.load(json_file)
 
     # Override root path
@@ -110,6 +112,7 @@ def main(opt):
         
             PROCESSED_PATH = os.path.join(SESSION_PATH, "PROCESSED_DATA")
             FRAMES_PATH = os.path.join(PROCESSED_PATH, "FRAMES")
+            RELATIVE_PATH = os.path.join(session_name, "PROCESSED_DATA", "FRAMES")
             BATHY_PATH = os.path.join(PROCESSED_PATH, "BATHY")
             SESSION_INFO_PATH = os.path.join(METADATA_PATH, "session_info.csv")
             CSV_EXIFTOOL_FRAMES = os.path.join(METADATA_PATH, "metadata.csv")
@@ -130,12 +133,21 @@ def main(opt):
                 gb_path = "" if "g" in opt.no_clean else GPS_BASE_PATH
                 gd_path = "" if "g" in opt.no_clean else GPS_DEVICE_PATH
                 clear_processed_session(frames_path, bathy_path, meta_path, gb_path, gd_path)
+            
+            ### Try to know if DCIM have just image
+            isVideoOrImageOrNothing = get_dcim_type(VIDEOS_PATH)
+            if isVideoOrImageOrNothing == 0: # Image
+                FRAMES_PATH = VIDEOS_PATH
+                RELATIVE_PATH = os.path.join(session_name, "DCIM")
+                frames_per_second = get_frame_per_second_for_image(FRAMES_PATH)
+                cfg_prog['dcim']['frames_per_second'] = str(frames_per_second)
+
 
             ### write metadata on session_info file
             write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, leap_sec)
 
             ### Split videos into frames
-            if not opt.no_split:
+            if not opt.no_split and isVideoOrImageOrNothing == 1:
                 split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, session_name)
             
             ### We just want to split videos so we continue
@@ -159,10 +171,9 @@ def main(opt):
             if cfg_prog['gps']['use_llh_position'] == True:
                 LLH_PATH, flag_gps = compute_gps(SESSION_INFO_PATH, GPS_DEVICE_PATH, GPS_BASE_PATH, session_name, time_first_frame, FRAMES_PATH, SENSORS_PATH, rgp_station, delta_time, PPK_CONFIG_PATH, ppk_cfgs, flag_rtkfix, gpsbaseposition_mean_on_llh, cfg_prog)
                 ### plot GPS accuracy
-                TXT_PATH = GPS_position_accuracy(SESSION_INFO_PATH, LLH_PATH, GPS_DEVICE_PATH, flag_rtkfix)
+                TXT_PATH = GPS_position_accuracy(SESSION_INFO_PATH, LLH_PATH, GPS_DEVICE_PATH, flag_rtkfix) if flag_gps else ""
             else:
-                flag_gps = 1
-                TXT_PATH = compute_gps_for_only_device(SESSION_INFO_PATH, GPS_DEVICE_PATH, flag_rtkfix)
+                TXT_PATH, flag_gps = compute_gps_for_only_device(SESSION_INFO_PATH, GPS_DEVICE_PATH, flag_rtkfix)
 
             ### run bathy analysis if possible
             if not opt.no_bathy:
@@ -179,8 +190,8 @@ def main(opt):
 
             ### compute and add metadata to frames
             if not opt.no_annotate:
-                time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, BATHY_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH, remove_frames_outside_mission)
-        
+                time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, remove_frames_outside_mission,
+                                            RELATIVE_PATH, BATHY_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH)
         
         except Exception:
             # Print error

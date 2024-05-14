@@ -266,7 +266,8 @@ def compute_gps(SESSION_INFO_PATH, GPS_DEVICE_PATH, GPS_BASE_PATH, SESSION_NAME,
                         zip_ref.extractall(TEMP_LLH_FOLDER_PATH)
                     break
         if TEMP_LLH_FOLDER_PATH == "":
-            raise NameError("/!\\ GPS DEVICE DOESN'T HAVE LLH /!\\")
+            print("/!\\ GPS DEVICE DOESN'T HAVE LLH /!\\")
+            return "", flag_gps
         # Get the gps file
         for file in os.listdir(TEMP_LLH_FOLDER_PATH):
             if file.endswith(".LLH"):
@@ -360,10 +361,10 @@ def compute_gps(SESSION_INFO_PATH, GPS_DEVICE_PATH, GPS_BASE_PATH, SESSION_NAME,
         return LLH_PATH, flag_gps
     else :
         print("We do not have a navigation file")
-        return
+        return "", flag_gps
     
 def compute_gps_for_only_device(SESSION_INFO_PATH, GPS_DEVICE_PATH, flag_rtkfix):
-    TXT_PATH = 'None'
+    TXT_PATH = None
     TEMP_LLH_FOLDER_PATH = ""
     if os.path.isdir(GPS_DEVICE_PATH) :
         for folder in os.listdir(GPS_DEVICE_PATH) :
@@ -380,7 +381,8 @@ def compute_gps_for_only_device(SESSION_INFO_PATH, GPS_DEVICE_PATH, flag_rtkfix)
                 gpx_to_llh(GPS_DEVICE_PATH + "/" +folder)
 
         if TEMP_LLH_FOLDER_PATH == "":
-            raise NameError("/!\\ GPS DEVICE DOESN'T HAVE LLH /!\\")
+            print("/!\\ GPS DEVICE DOESN'T HAVE LLH /!\\")
+            return TXT_PATH, 0
         # Get the gps file
         for file in os.listdir(TEMP_LLH_FOLDER_PATH):
             if file.endswith(".LLH"):
@@ -388,4 +390,4 @@ def compute_gps_for_only_device(SESSION_INFO_PATH, GPS_DEVICE_PATH, flag_rtkfix)
                 TXT_PATH = GPS_position_accuracy(SESSION_INFO_PATH, TEMP_LLH_PATH, GPS_DEVICE_PATH, flag_rtkfix)
                 break
     
-    return TXT_PATH
+    return TXT_PATH, 1

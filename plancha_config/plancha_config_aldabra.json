@@ -2,7 +2,7 @@
    "_NB": "If option is specified in command line, session_name and time_first_frame_UTC will come from this file. We can processed multiple session",
    "session_info": {
       "session_name": "",
-      "root": "",
+      "root": "/media/bioeos/F/202210_plancha_session/",
       "_NB": "flag that deletes all the processed files for the current session (frames, gps processed files, bathy files etc)",
       "delete_processed_session": true 
    },
@@ -13,7 +13,7 @@
       "leap_sec": "18",
       "_NB": "insert the date and time following the format YYYY:MM:DD HH:MM:SS.000",
       "_NB": "insert the time in UTC+0 format",
-      "time_first_frame_UTC": "1970:01:01 00:00:00.00",
+      "time_first_frame_UTC": "",
       "_NB": "After split videos, session_name_1_{first_frame_to_keep} to match with time_first_frame_UTC. All previous frames are removed",
       "first_frame_to_keep": 0,
       "_NB": "Remove frames outside mission Keep frames unless mission interval isn't found",
@@ -22,18 +22,18 @@
 
    "gps": {
       "ppk_config_path": "ppk_config/",
-      "ppk_config_name": "ppk_config_file",
+      "ppk_config_name": "ppk_aldabra_20220310",
       "_NB": "If this flag is true, use RGP base instead of emlid reach",
-      "rgp_station": "lepo",
       "force_use_rgp": false,
+      "rgp_station": "",
       "use_llh_position": true,
-      "gpsbaseposition_mean_on_llh": true,
+      "gpsbaseposition_mean_on_llh": false,
       "_NB": "Useful UTM zones -> Europa=37",
       "_NB": "Useful UTM zones -> Aldabra=38",
       "_NB": "Useful UTM zones -> Madagascar=38",
       "_NB": "Useful UTM zones -> Mauritius=40",
       "_NB": "Useful UTM zones -> Réunion=40",
-      "utm_zone": "40",
+      "utm_zone": "38",
       "utm_south": true,
       "utm_ellips": "WGS84",
       "filt_rtkfix": true,
@@ -60,11 +60,11 @@
       "_NB": "min and max depth for the current zone, can filter outliers data -> min=0.20",
       "dpth_range": {
          "min": 0.2,
-         "max": 50.0
+         "max": 40.0
       },
       "dpth_win_s": 1,
       "dpth_valid_prop": 0.5,
-      "use_geoid": true,
+      "use_geoid": false,
       "geoid_path": "./geoid/server/geoid_reunion_RAR07.txt"
    },
    "mesh": {

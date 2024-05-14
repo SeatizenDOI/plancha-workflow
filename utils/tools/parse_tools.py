@@ -51,6 +51,6 @@ def get_list_sessions(opt) -> list:
         src = Path(src)
         if Path.exists(src):
             df_ses = pd.read_csv(src)
-            list_sessions = [str(Path(row.root_folder, row.session_name)) for row in df_ses.itertuples(index=False)]
+            list_sessions = [Path(row.root_folder, row.session_name) for row in df_ses.itertuples(index=False)]
 
     return list_sessions

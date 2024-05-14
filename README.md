@@ -7,7 +7,7 @@
 This repository allows the data retrieved by the [Plancha](https://ocean-indien.ifremer.fr/en/Projects/Technological-innovations/PLANCHA-2021-2023) project to be processed .
 
 The first step is to centralize the raw data:
-- Videos on the gopro
+- Videos or Image (need to have all image at same level) on the gopro
 - Connect to the Base, if using an emlid RS2, to retrieve the RINEX and LLH. If you're using data from an RGP station, enter it in the plancha_config.json file.
 - Connect to the board's emlid M2 and retrieve RINEX and LLH
 - Bin file provided by pixhawk
@@ -42,8 +42,8 @@ YYYYMMDD_COUNTRYCODE-optionalplace_device_session-number
 
 At root folder :
 ```bash
-conda create --name plancha_clean_env python=3.9
-conda activate plancha_clean_env
+conda create --name plancha_env python=3.9
+conda activate plancha_env
 
 pip install geocube ffmpeg-python open3d hatanaka wget PyExifTool transforms3d folium pymavlink pycountry pytz
 ```

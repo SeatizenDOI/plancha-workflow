@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 from tools.parse_tools import get_list_sessions
 
-JACQUES_VERSION = "20240419_v4.0"
+JACQUES_VERSION = "20240513_v20.0"
 MULTILABEL_VERSION = "lombardata_DinoVdeau-large-2024_04_03-with_data_aug_batch-size32_epochs150_freeze"
 
 def grab_bathy_raster(session_path, output_folder, opt_place):
@@ -112,7 +112,7 @@ def build_jacques_gps(session_path):
 
     # Merge the DataFrames based on the image names
     # Sometimes we don't have this information due to no bin
-    keys = [key for key in ['Image_name', 'GPSDateTime', 'SubSecDateTimeOriginal', 'GPSLatitude', 'GPSLongitude', 'GPSTrack', 'GPSRoll', 'GPSPitch'] if key in gps_df] 
+    keys = [key for key in ['Image_name', 'GPSDateTime', 'SubSecDateTimeOriginal', 'GPSLatitude', 'GPSLongitude', 'GPSTrack', 'GPSRoll', 'GPSPitch', 'GPSAltitude'] if key in gps_df] 
     try:
         merged_df = annot_df.merge(gps_df[keys], on='Image_name', how='left')
     except KeyError:
@@ -230,7 +230,6 @@ def main(opt):
     index_start = int(opt.index_start) if opt.index_start.isnumeric() and int(opt.index_start) < len(list_session) else 0
 
     for session_path in list_session[index_start:]:
-        session_path = Path(session_path)
         try:
             print(f"\n-- Working with session {session_path}")
             
