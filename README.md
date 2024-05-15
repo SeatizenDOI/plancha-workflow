@@ -42,10 +42,8 @@ YYYYMMDD_COUNTRYCODE-optionalplace_device_session-number
 
 At root folder :
 ```bash
-conda create --name plancha_env python=3.9
-conda activate plancha_env
-
-pip install geocube ffmpeg-python open3d hatanaka wget PyExifTool transforms3d folium pymavlink pycountry pytz
+    conda create env --file plancha_env.yml
+    conda activate plancha_env
 ```
 
 ### ExifTool

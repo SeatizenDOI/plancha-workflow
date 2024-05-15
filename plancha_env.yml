@@ -1,0 +1,16 @@
+name: plancha_env
+dependencies:
+  - python=3.9
+  - pip
+  - pip:
+    - ffmpeg-python
+    - folium
+    - geocube
+    - hatanaka
+    - open3d
+    - pycountry
+    - PyExifTool
+    - pymavlink
+    - pytz
+    - transforms3d
+    - wget 
