@@ -81,7 +81,7 @@ def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME):
         print("\t* We are treating the following file : ", file.name)
 
         # Define the ffmpeg command
-        output_pattern = Path(FRAMES_PATH, f"{SESSION_NAME}_{str(count_video)}_%03d.jpeg")  # Output pattern for the frames
+        output_pattern = Path(FRAMES_PATH, f"{SESSION_NAME}_{str(count_video).rjust(2, '0')}_%03d.jpeg")  # Output pattern for the frames
         (
             ffmpeg.input(str(file))
             .output(str(output_pattern), vf=f'fps={frames_per_second}', qmin=1, q='1', loglevel='quiet') # Set output pattern, frame rate filter, quality parameters, and logging level
