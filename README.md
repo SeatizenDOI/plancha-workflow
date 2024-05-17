@@ -8,6 +8,15 @@
   <a href="https://github.com/SeatizenDOI/plancha-workflow/watchers"><img src="https://img.shields.io/github/watchers/SeatizenDOI/plancha-workflow" alt="GitHub watchers"></a>
 </p>
 
+<div align="center">
+  <img src="images/Img50-B4Planche.JPG" alt="Project logo" width="700">
+  <p align="center">Process a plancha-session after data collection. Image by Rémi Leroy.</p>
+  <a href="https://github.com/SeatizenDOI/plancha-workflow">View framework</a>
+  ·
+  <a href="https://github.com/SeatizenDOI/plancha-workflow/issues">Report Bug</a>
+  ·
+  <a href="https://github.com/SeatizenDOI/plancha-workflow/issues">Request Feature</a>
+</div>
 
 <div align="center">
 
