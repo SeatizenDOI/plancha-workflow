@@ -633,6 +633,10 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
     df = calc_ign_depth_at_gps_coord(df,dfdict,cfg_prog)
     print('info: number of point in main dataframe : ', len(df))
     
+    if (len(df) == 0): 
+        print("No more points to analyze due to filtering")
+        return df
+
     print('\ninfo: Save to file')
     
     # create folder

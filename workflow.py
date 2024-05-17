@@ -148,7 +148,7 @@ def main(opt):
 
             ### Split videos into frames
             if not opt.no_split and isVideoOrImageOrNothing == 1:
-                split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, session_name)
+                split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, session_name, opt.only_split)
             
             ### We just want to split videos so we continue
             if opt.only_split: continue

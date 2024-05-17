@@ -51,7 +51,7 @@ def get_frame_per_second_for_image(FRAMES_PATH):
         
     return str(fps) 
 
-def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME):
+def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME, isOnlySplit):
     count_video = 0
 
     VIDEOS_PATH = Path(VIDEOS_PATH)
@@ -87,6 +87,8 @@ def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME):
             .output(str(output_pattern), vf=f'fps={frames_per_second}', qmin=1, q='1', loglevel='quiet') # Set output pattern, frame rate filter, quality parameters, and logging level
             .run()  # Run the ffmpeg command
         )
+
+        if isOnlySplit: break
 
     print(f"\nfunc: exec time --> {dt.datetime.now() - texec} sec")
     print("End of splitting videos\n")

@@ -2,7 +2,7 @@
   <a href="https://github.com/SeatizenDOI/plancha-workflow/graphs/contributors"><img src="https://img.shields.io/github/contributors/SeatizenDOI/plancha-workflow" alt="GitHub contributors"></a>
   <a href="https://github.com/SeatizenDOI/plancha-workflow/network/members"><img src="https://img.shields.io/github/forks/SeatizenDOI/plancha-workflow" alt="GitHub forks"></a>
   <a href="https://github.com/SeatizenDOI/plancha-workflow/issues"><img src="https://img.shields.io/github/issues/SeatizenDOI/plancha-workflow" alt="GitHub issues"></a>
-  <a href="https://github.com/SeatizenDOI/plancha-workflow/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SeatizenDOI/plancha-workflow" alt="License"></a>
+  <a href="https://github.com/SeatizenDOI/plancha-workflow/blob/master/LICENSE"><img src="https://img.shields.io/github/license/SeatizenDOI/plancha-workflow" alt="License"></a>
   <a href="https://github.com/SeatizenDOI/plancha-workflow/pulls"><img src="https://img.shields.io/github/issues-pr/SeatizenDOI/plancha-workflow" alt="GitHub pull requests"></a>
   <a href="https://github.com/SeatizenDOI/plancha-workflow/stargazers"><img src="https://img.shields.io/github/stars/SeatizenDOI/plancha-workflow" alt="GitHub stars"></a>
   <a href="https://github.com/SeatizenDOI/plancha-workflow/watchers"><img src="https://img.shields.io/github/watchers/SeatizenDOI/plancha-workflow" alt="GitHub watchers"></a>
@@ -193,4 +193,4 @@ Contributions are welcome! To contribute, please follow these steps:
 
 ## License
 
-This framework is distributed under the wtfpl license. See `LICENSE.txt` for more information.
+This framework is distributed under the wtfpl license. See `LICENSE` for more information.
