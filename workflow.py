@@ -111,6 +111,7 @@ def main(opt):
             else:
                 cfg_prog['gps']['force_use_rgp'] = default_behaviour_force_use_rgp
                 cfg_prog['gps']['rgp_station'] = default_rgp_station
+                rgp_station = default_rgp_station
 
             # derived paths and parameters
             SESSION_PATH = os.path.join(ROOT, session_name)

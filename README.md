@@ -131,6 +131,7 @@ This file contains all the parameters necessary to process a session.
 | time_first_frame_UTC |  UTC+0 Time indicate on first frame in the format YYYY:MM:DD HH:MM:SS.000 |
 | first_frame_to_keep |  After split videos, session_name_1_{first_frame_to_keep} to match with time_first_frame_UTC. All previous frames are removed |
 | remove_frames_outside_mission |  Remove frames outside mission Keep frames unless mission interval isn't found |
+| filt_exclude_specific_datetimeUTC | Exclude specific interval for frames with UTC interval |
 
 ### gps
 
@@ -190,6 +191,8 @@ This file is used to process several sessions one after the other.
 | filt_exclude_specific_timeUS | Exclude bathy data on specific interval |
 | depth_range_max | Max allowed depth values |
 | depth_range_min | Min allowed depth values |
+| filt_exclude_specific_datetimeUTC | Allow to filter frame by utc interval. |
+| rgp_station | Name of rgp station. If filled, force to use rgp station instead base. |
 
 ## Contributing
 
