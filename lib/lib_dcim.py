@@ -2,10 +2,12 @@ import os
 import json
 import ffmpeg
 import exiftool
+import traceback
 import numpy as np
 import pandas as pd
 import datetime as dt
 from pathlib import Path
+from natsort import natsorted
 
 from lib.lib_bathy import bathy_preproc_to_txt
 
@@ -17,7 +19,7 @@ def get_dcim_type(VIDEOS_PATH):
         print("The following path does not exist : ", VIDEOS_PATH)
         return
     
-    list_files_in_video_path = sorted(list(VIDEOS_PATH.iterdir()))
+    list_files_in_video_path = natsorted(list(VIDEOS_PATH.iterdir()))
     if len(list_files_in_video_path) == 0: return -1 
 
     is_only_frames = False
@@ -73,7 +75,7 @@ def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME, isOn
 
     texec = dt.datetime.now()
     # for each file in the videos folder
-    for file in sorted(list(VIDEOS_PATH.iterdir())):
+    for file in natsorted(list(VIDEOS_PATH.iterdir())):
         if file.suffix.lower() != ".mp4": continue
 
         # increase the count video in order to differentiate between different videos of same session
@@ -81,12 +83,15 @@ def split_videos(VIDEOS_PATH, FRAMES_PATH, frames_per_second, SESSION_NAME, isOn
         print("\t* We are treating the following file : ", file.name)
 
         # Define the ffmpeg command
-        output_pattern = Path(FRAMES_PATH, f"{SESSION_NAME}_{str(count_video).rjust(2, '0')}_%03d.jpeg")  # Output pattern for the frames
-        (
-            ffmpeg.input(str(file))
-            .output(str(output_pattern), vf=f'fps={frames_per_second}', qmin=1, q='1', loglevel='quiet') # Set output pattern, frame rate filter, quality parameters, and logging level
-            .run()  # Run the ffmpeg command
-        )
+        try:
+            output_pattern = Path(FRAMES_PATH, f"{SESSION_NAME}_{count_video}_%03d.jpeg")  # Output pattern for the frames
+            (
+                ffmpeg.input(str(file))
+                .output(str(output_pattern), vf=f'fps={frames_per_second}', qmin=1, q='1', loglevel='quiet') # Set output pattern, frame rate filter, quality parameters, and logging level
+                .run()  # Run the ffmpeg command
+            )
+        except Exception:
+            print(traceback.format_exc(), end="\n\n")
 
         if isOnlySplit: break
 
@@ -98,7 +103,7 @@ def remove_first_frames(FRAMES_PATH, max_frames):
 
     print(f"-- Removing first frame")
     frame_path = Path(FRAMES_PATH)
-    for frame in sorted(list(frame_path.iterdir())):
+    for frame in natsorted(list(frame_path.iterdir())):
         video_number, frame_number = [int(a) for a in frame.stem.split("_")[4:]]
         if max_frames < frame_number: break
 
@@ -138,6 +143,29 @@ def remove_outside_frames(csv_exiftool_frames, session_info, FRAMES_PATH):
             cpt_frames += 1
             frame.unlink()
     print(f"func: {cpt_frames} frames have been deleted.")
+    
+    return csv_exiftool_frames
+
+def remove_frames_from_specific_intervals(csv_exiftool_frames, FRAMES_PATH, filt_exclude_specific_datetimeUnix):
+    print("\n-- Remove frames on specfic interval \n")
+    
+    if "datetime_unix" not in csv_exiftool_frames:
+        print("[WARNING] No column named datetime_unix.")
+        return csv_exiftool_frames
+
+    for f_start, f_stop in filt_exclude_specific_datetimeUnix:
+        dfa = csv_exiftool_frames[csv_exiftool_frames["datetime_unix"] < f_start]
+        dfb = csv_exiftool_frames[csv_exiftool_frames["datetime_unix"] > f_stop]
+        csv_exiftool_frames = pd.concat([dfa, dfb])
+
+    list_frames, cpt_frames = list(csv_exiftool_frames["FileName"]), 0
+    # Remove outside frames.
+    for frame in Path(FRAMES_PATH).iterdir():
+        if frame.name not in list_frames:
+            cpt_frames += 1
+            frame.unlink()
+    print(f"func: {cpt_frames} frames have been deleted.")
+    
     return csv_exiftool_frames
 
 def write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, leap_sec):
@@ -154,6 +182,7 @@ def write_session_info(SESSION_INFO_PATH, frames_per_second, time_first_frame, l
     return
 
 def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, remove_frames_outside_mission,
+                                filt_exclude_specific_datetimeUnix,
                                 RELATIVE_PATH, BATHY_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH):
 
     print("\n-- 3B of 6 : EXPORT VIDEO & FRAME METADATA TO CSV\n")
@@ -322,7 +351,11 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
 
     # Remove frames outside mission 
     if remove_frames_outside_mission:
-        csv_exiftool_frames = remove_outside_frames(csv_exiftool_frames, session_info, FRAMES_PATH)            
+        csv_exiftool_frames = remove_outside_frames(csv_exiftool_frames, session_info, FRAMES_PATH)
+
+    # Remove frames if filt_exclude_specific_datetimeUnix
+    if len(filt_exclude_specific_datetimeUnix) != 0:
+        csv_exiftool_frames = remove_frames_from_specific_intervals(csv_exiftool_frames, FRAMES_PATH, filt_exclude_specific_datetimeUnix)
 
     print("\n-- 6 of 6 : IMPORT EXIF METADATA\n")
 

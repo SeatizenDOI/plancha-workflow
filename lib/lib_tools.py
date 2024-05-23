@@ -251,3 +251,13 @@ def write_real_mission_interval(SESSION_INFO_PATH, df_gps, df_msg):
     session_info.insert(len(session_info.columns), "Mission_START", [start_wp])
     session_info.insert(len(session_info.columns), "Mission_END", [end_wp])
     session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
+
+
+def convert_datetime_to_datetime_unix(dt_value_in_str: str):
+    """ Convert string datetime utc in timestamp """
+    return int(dt.datetime.strptime(dt_value_in_str, '%Y:%m:%d %H:%M:%S.%f').replace(tzinfo=dt.timezone.utc).timestamp() * 1e9)
+
+
+def convert_datetime_unix_to_datetime(datetime_unix):
+    """ Convert timestamp in string datetime utc """
+    return dt.datetime.fromtimestamp(datetime_unix / 1e9, tz=dt.timezone.utc).strftime('%Y:%m:%d %H:%M:%S.%f')[:-3]

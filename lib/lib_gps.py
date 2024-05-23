@@ -248,7 +248,7 @@ def ppk(SESSION_NAME, GPS_BASE_PATH, GPS_DEVICE_PATH, PPK_CONFIG_PATH, ppk_cfgs,
 
 def compute_gps(SESSION_INFO_PATH, GPS_DEVICE_PATH, GPS_BASE_PATH, SESSION_NAME, time_first_frame, FRAMES_PATH, SENSOR_PATH, rgp_station, delta_time, PPK_CONFIG_PATH, ppk_cfgs, flag_rtkfix, gpsbaseposition_mean_on_llh, cfg_prog):
     flag_gps = 0
-    flag_device = 0   # old name = flag_gps
+    flag_device = 0 
     flag_base = 0   # 1 : RINEX ; 2 : RGP
     TEMP_LLH_FOLDER_PATH = ""
     print("\n--2/6 Find best GPS position\n")

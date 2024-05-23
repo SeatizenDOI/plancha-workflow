@@ -7,6 +7,7 @@ Created on Tue Mar 15 12:17:30 2022
 import os
 import csv
 import json
+import time
 import pyproj 
 import shutil 
 import traceback
@@ -55,12 +56,12 @@ def clean_nullbyte_raw_log(log_path):
             shutil.move( log_path+'.tmp', log_path )
     return True
 
-def parse_raw_log(log_path,cfg_prog):
+def parse_raw_log(log_path, cfg_prog):
     # time func execution
     texec = dt.datetime.now()
     
     print('Cleaning raw log ...')
-    clean_nullbyte_raw_log(log_path,cfg_prog)
+    clean_nullbyte_raw_log(log_path)
     
     cfg_parse = cfg_prog['parse']
     
@@ -125,7 +126,7 @@ def parse_raw_log(log_path,cfg_prog):
     
     return dfdict
 
-def parse_raw_bin(log_path,cfg_prog):
+def parse_raw_bin(log_path, cfg_prog):
     # time func execution
     texec = dt.datetime.now()
     
@@ -150,7 +151,7 @@ def parse_raw_bin(log_path,cfg_prog):
     print('func: parsing log for keys:')
     print(param_list,status_list)
     
-    filebuf = './tmp.csv'
+    filebuf = f'./tmp_{int(time.time())}.csv'
     for p in [*param_list, *status_list]:
         print('Reading data for entry:',p)
         
@@ -166,7 +167,7 @@ def parse_raw_bin(log_path,cfg_prog):
 
     return dfdict
 
-def build_dataframe_gps(dfdict,cfg_prog, TXT_PATH):
+def build_dataframe_gps(dfdict, cfg_prog, TXT_PATH):
     # time func execution
     texec = dt.datetime.now()
     
@@ -248,17 +249,22 @@ def build_dataframe_gps(dfdict,cfg_prog, TXT_PATH):
             print('[warning] no valid tstop calculated, filter cancelled')
     
     # Filter data according to filter_after_waypoints
+    filt_exclude_specific_datetimeUnix = []
     if len(cfg_gps['filt_exclude_specific_timeUS']) != 0:
+        timestamp_key = "datetime_unix" if "datetime_unix" in df else "timestamp"
+        factor_to_nanosaconds = 1.0 if "datetime_unix" in df else 1e9
         for t_start, t_stop in cfg_gps['filt_exclude_specific_timeUS']:
             if t_start > t_stop:
-                print("/!\\ t_start ({}) > t_stop ({}) : Aborting filter on this interval/!\\".format(t_start, t_stop))
+                print(f"/!\\ t_start ({t_start}) > t_stop ({t_stop}) : Aborting filter on this interval/!\\")
                 continue
-            print('func: filter data - Removing timeUS interval {} - {}'.format(t_start, t_stop))
+            print(f'func: filter data - Removing timeUS interval {t_start} - {t_stop}')
             dfa = df[df.TimeUS < t_start]
             dfb = df[df.TimeUS > t_stop]
             df = pd.concat([dfa, dfb])
 
-        
+            v1 = int((dfa[timestamp_key].iloc[-1] if len(dfa[timestamp_key]) else df[timestamp_key].iloc[0]) * factor_to_nanosaconds)
+            v2 = int((dfb[timestamp_key].iloc[0] if len(dfb[timestamp_key]) else df[timestamp_key].iloc[-1]) * factor_to_nanosaconds)
+            filt_exclude_specific_datetimeUnix.append([v1, v2])
 
     print('func: Convert lat and long to UTM coordinates (pyproj)')
     
@@ -280,7 +286,7 @@ def build_dataframe_gps(dfdict,cfg_prog, TXT_PATH):
     # time func execution
     print('func: exec time --> ',dt.datetime.now() - texec)
     
-    return df
+    return df, filt_exclude_specific_datetimeUnix
 
 def calc_att_at_gps_coord(df,dfdict,cfg_prog):
     # time func execution
@@ -601,7 +607,7 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
             
     if not flag_log :
         print("\ninfo: We do not have a log file or bin file. Abort bathy processing")
-        return {}
+        return {}, []
     else:
         print("\n-- 3A of 6 : BATHIMETRY PROCESSING\n")
 
@@ -612,12 +618,13 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
     write_real_mission_interval(SESSION_INFO_PATH, dfdict[cfg_prog["parse"]["gpskey"]], dfdict["MSG"])
 
     print('\ninfo: Build base dataframe from GPS')
-    df = build_dataframe_gps(dfdict,cfg_prog, TXT_PATH)
+    df, filt_exclude_specific_datetimeUnix = build_dataframe_gps(dfdict,cfg_prog, TXT_PATH)
     print('info: number of point in main dataframe : ', len(df))
 
     if (len(df) == 0): 
         print("No more points to analyze due to filtering")
-        return df
+        return df, filt_exclude_specific_datetimeUnix
+    
     print('info: GPS log starts >',df.GPS_time.values[0])
     print('info: GPS log ends   >',df.GPS_time.values[-1])
     
@@ -635,7 +642,7 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
     
     if (len(df) == 0): 
         print("No more points to analyze due to filtering")
-        return df
+        return df, filt_exclude_specific_datetimeUnix
 
     print('\ninfo: Save to file')
     
@@ -673,7 +680,7 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
     print('\ninfo: Save interactive map')
     fmap.save(filepath + '/webmap_usv_track.html')
     
-    return df
+    return df, filt_exclude_specific_datetimeUnix
 
 def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
     ###### section : interpolate bathy to regular grid

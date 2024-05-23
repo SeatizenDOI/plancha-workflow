@@ -17,7 +17,9 @@
       "_NB": "After split videos, session_name_1_{first_frame_to_keep} to match with time_first_frame_UTC. All previous frames are removed",
       "first_frame_to_keep": 0,
       "_NB": "Remove frames outside mission Keep frames unless mission interval isn't found",
-      "remove_frames_outside_mission": true
+      "remove_frames_outside_mission": true,
+      "_NB": "Exclude specific interval for frames with UTC interval : [['2023:11:03 05:14:13.00', '2023:11:03 05:18:48.00']]",
+      "filt_exclude_specific_datetimeUTC": []
    },
 
    "gps": {
@@ -36,9 +38,11 @@
       "utm_zone": "38",
       "utm_south": true,
       "utm_ellips": "WGS84",
+      "_NB": "Keep only bathy points with centimetric gps correction (Q1)",
       "filt_rtkfix": true,
+      "_NB": "Keep only bathy points inside mission interval",
       "filt_waypoint": true,
-      "_NB": "Exclude specific interval",
+      "_NB": "Exclude specific interval for bathy points and frames",
       "filt_exclude_specific_timeUS": []
    },
    

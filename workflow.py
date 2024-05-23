@@ -48,15 +48,18 @@ def main(opt):
     default_min_depth = float(cfg_prog['bathy']['dpth_range']['min'])
 
 
-    # Build a list of [SESSION_NAME, FIRST_FRAME_UTC, FIRST_FRAME_NUMBER, filt_exclude_specific_timeUS, depth_range_max, depth_range_min]
+    # Build a list of [SESSION_NAME, FIRST_FRAME_UTC, FIRST_FRAME_NUMBER, filt_exclude_specific_timeUS, depth_range_max, depth_range_min, filt_exclude_specific_datetimeUTC, default_rgp_station]
     listSessionFirstFrame = [[
         cfg_prog['session_info']['session_name'], 
         str(cfg_prog['dcim']['time_first_frame_UTC']), 
         int(cfg_prog['dcim']['first_frame_to_keep']), 
         str(cfg_prog['gps']['filt_exclude_specific_timeUS']), 
         default_max_depth,
-        default_min_depth
+        default_min_depth,
+        str(cfg_prog['dcim']['filt_exclude_specific_datetimeUTC']),
+        "" # Don't fill with rgp station name to avoid force use by mistake
     ]]
+
     DEFAULT_SIZE = len(listSessionFirstFrame[0])
     if opt.csv != None and os.path.exists(opt.csv):
         with open(opt.csv, "r") as csvfile:
@@ -82,17 +85,18 @@ def main(opt):
 
     # for the leap second definition please refer to : https://fr.wikipedia.org/wiki/Synchronisation_GPS
     leap_sec = int(cfg_prog['dcim']['leap_sec'])
-    # La Reunion only
-    rgp_station = cfg_prog['gps']['rgp_station']
     # flag for filter on rtkfix data
     flag_rtkfix =  cfg_prog['gps']['filt_rtkfix']
+
+    # La Reunion only
     # flag for force rgp station
-    cfg_prog['gps']['force_use_rgp'] = True if cfg_prog['gps']['force_use_rgp'] else opt.force_use_rgp
+    default_behaviour_force_use_rgp = True if cfg_prog['gps']['force_use_rgp'] else opt.force_use_rgp
+    default_rgp_station = str(cfg_prog['gps']['rgp_station'])
 
     # Init some variables to monitoring
     session_name_fails = []
     # Go over all file from session_csv
-    for session_name, time_first_frame, number_first_frame, filt_exclude_specific_timeUS, depth_range_max, depth_range_min in listSessionFirstFrame:
+    for session_name, time_first_frame, number_first_frame, filt_exclude_specific_timeUS, depth_range_max, depth_range_min, filt_exclude_specific_datetimeUTC, rgp_station in listSessionFirstFrame:
         print("\n\n-- Launching " + session_name)
 
         try:
@@ -100,6 +104,13 @@ def main(opt):
             cfg_prog['session_info']['session_name'] = session_name 
             cfg_prog['dcim']['time_first_frame_UTC'] = time_first_frame
             cfg_prog['dcim']['first_frame_to_keep'] = int(opt.remove_frames) if opt.remove_frames and opt.remove_frames.isnumeric() else number_first_frame # Override
+
+            if rgp_station != "":
+                cfg_prog['gps']['force_use_rgp'] = True
+                cfg_prog['gps']['rgp_station'] = rgp_station
+            else:
+                cfg_prog['gps']['force_use_rgp'] = default_behaviour_force_use_rgp
+                cfg_prog['gps']['rgp_station'] = default_rgp_station
 
             # derived paths and parameters
             SESSION_PATH = os.path.join(ROOT, session_name)
@@ -176,9 +187,10 @@ def main(opt):
                 TXT_PATH, flag_gps = compute_gps_for_only_device(SESSION_INFO_PATH, GPS_DEVICE_PATH, flag_rtkfix)
 
             ### run bathy analysis if possible
+            filt_exclude_specific_datetimeUnix = []
             if not opt.no_bathy:
                 try:
-                    df_bathy = run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INFO_PATH)
+                    df_bathy, filt_exclude_specific_datetimeUnix = run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INFO_PATH)
                     if len(df_bathy) != 0:
                         cfg_prog = run_bathy_postprocessing(df_bathy, cfg_prog, BATHY_PATH)                            
                 
@@ -187,10 +199,17 @@ def main(opt):
                     
                     print("[ERROR] Something occur during bathy, continue to write metadata in images")
 
+            ### Convert filt_exclude_specific_datetimeUnix to datetime and store it in cfg_prog. Convert filt_exclude_specific_datetimeUTC to unix and add it to filt_exclude_specific_datetimeUnix
+            filt_exclude_specific_datetimeUTC = [] if filt_exclude_specific_datetimeUTC == "" else json.loads(filt_exclude_specific_datetimeUTC.replace("'", '"'))
+            datetimeUTC_to_datetimeUnix = [[convert_datetime_to_datetime_unix(a), convert_datetime_to_datetime_unix(b)] for a, b in filt_exclude_specific_datetimeUTC]
+            filt_exclude_specific_datetimeUnix += datetimeUTC_to_datetimeUnix
+            filt_exclude_specific_datetimeUTC = [[convert_datetime_unix_to_datetime(a), convert_datetime_unix_to_datetime(b)] for a, b in filt_exclude_specific_datetimeUnix]
+            cfg_prog['dcim']['filt_exclude_specific_datetimeUTC'] = filt_exclude_specific_datetimeUTC
 
             ### compute and add metadata to frames
             if not opt.no_annotate:
-                time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, remove_frames_outside_mission,
+                time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, exiftool_config_path, remove_frames_outside_mission, 
+                                            filt_exclude_specific_datetimeUnix,
                                             RELATIVE_PATH, BATHY_PATH, FRAMES_PATH, VIDEOS_PATH, SESSION_INFO_PATH, CSV_EXIFTOOL_FRAMES, TXT_PATH)
         
         except Exception:

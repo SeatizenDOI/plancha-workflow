@@ -1,7 +1,7 @@
 {  
    "_NB": "If option is specified in command line, session_name and time_first_frame_UTC will come from this file. We can processed multiple session",
    "session_info": {
-      "session_name": "20221111_MUS-SAYA-DE-MALHA_ASV-01_00",
+      "session_name": "",
       "root": "/media/bioeos/E/202211_plancha_session",
       "_NB": "flag that deletes all the processed files for the current session (frames, gps processed files, bathy files etc)",
       "delete_processed_session": true 
@@ -13,11 +13,13 @@
       "leap_sec": "18",
       "_NB": "insert the date and time following the format YYYY:MM:DD HH:MM:SS.000",
       "_NB": "insert the time in UTC+0 format",
-      "time_first_frame_UTC": "2022:11:11 04:02:50.400",
+      "time_first_frame_UTC": "2022:11:19 02:48:25.000",
       "_NB": "After split videos, session_name_1_{first_frame_to_keep} to match with time_first_frame_UTC. All previous frames are removed",
       "first_frame_to_keep": 0,
       "_NB": "Remove frames outside mission Keep frames unless mission interval isn't found",
-      "remove_frames_outside_mission": true
+      "remove_frames_outside_mission": true,
+      "_NB": "Exclude specific interval for frames with UTC interval : [['2023:11:03 05:14:13.00', '2023:11:03 05:18:48.00']]",
+      "filt_exclude_specific_datetimeUTC": []
    },
 
    "gps": {
@@ -36,9 +38,11 @@
       "utm_zone": "40",
       "utm_south": true,
       "utm_ellips": "WGS84",
+      "_NB": "Keep only bathy points with centimetric gps correction (Q1)",
       "filt_rtkfix": false,
+      "_NB": "Keep only bathy points inside mission interval",
       "filt_waypoint": true,
-      "_NB": "Exclude specific interval",
+      "_NB": "Exclude specific interval for bathy points and frames",
       "filt_exclude_specific_timeUS": []
    },
    
