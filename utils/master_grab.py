@@ -120,8 +120,18 @@ def build_jacques_gps(session_path):
     
     # Drop the 'Image_name' column from merged_df
     merged_df.drop(columns='Image_name', inplace=True)
-    
     merged_df.to_csv(output_file, index=False, header=True)
+    
+    return output_file 
+
+
+def remove_jacques_gps(j_gps):
+    if j_gps == None: return
+    
+    j_gps = Path(j_gps)
+    if Path.exists(j_gps) and j_gps.is_file():
+        j_gps.unlink()
+
 
 def grab_predictions_raster(session_path, output_folder, opt_place):
         
@@ -133,7 +143,7 @@ def grab_predictions_raster(session_path, output_folder, opt_place):
     for file in ia_path.iterdir():
         if file.suffix.lower() == ".tif":
             class_name = file.name.replace(session_path.name+"_", "").split("_raster")[0].upper()
-            folder_to_move_raster = Path(output_folder, opt_place, class_name)
+            folder_to_move_raster = Path(output_folder, class_name)
             folder_to_move_raster.mkdir(exist_ok=True, parents=True)
 
             shutil.copy(file, folder_to_move_raster)
@@ -267,9 +277,10 @@ def main(opt):
                 grab_metadata(session_path, mlscoregps_output, opt_place, "predictions_scores_gps.csv")
             
             if opt.jacques_predictions_gps:
-                build_jacques_gps(session_path)
+                j_gps_file = build_jacques_gps(session_path)
                 grab_metadata(session_path, jpgps_output, opt_place, "jacques_gps.csv")
-            
+                remove_jacques_gps(j_gps_file)
+
             if opt.metadata:
                 grab_metadata(session_path, metadata_output, opt_place, "metadata.csv")
 

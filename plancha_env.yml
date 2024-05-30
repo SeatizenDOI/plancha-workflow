@@ -1,17 +1,19 @@
 name: plancha_env
+channels:
+  - defaults
 dependencies:
   - python=3.9
   - pip=24
   - pip:
-    - ffmpeg-python=0.2
-    - folium=0.16
-    - geocube=0.4.2
-    - hatanaka=2.8.1
-    - open3d=0.18.0
-    - pycountry=23.12
-    - PyExifTool=0.5.6
-    - pymavlink=2.4.41
-    - pytz=2024.1
-    - transforms3d=0.4.1
-    - wget=3.2 
-    - natsort=8.4
+    - ffmpeg-python==0.2.0
+    - folium==0.16.0
+    - geocube==0.4.2
+    - hatanaka==2.8.1
+    - open3d==0.18.0
+    - pycountry==23.12.11
+    - PyExifTool==0.5.6
+    - pymavlink==2.4.41
+    - pytz==2024.1
+    - transforms3d==0.4.1
+    - wget==3.2 
+    - natsort==8.4.0

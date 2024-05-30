@@ -8,8 +8,8 @@ import os
 import csv
 import json
 import time
-import pyproj 
-import shutil 
+import pyproj
+import shutil
 import traceback
 import subprocess
 import numpy as np
@@ -17,8 +17,9 @@ import pandas as pd
 import datetime as dt
 import geopandas as gpd
 from pathlib import Path
-import transforms3d as t3d 
+import transforms3d as t3d
 from functools import partial
+from natsort import natsorted
 import matplotlib.pyplot as plt
 from shapely.geometry import Point
 
@@ -591,7 +592,7 @@ def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INF
     
     ##### section : load data ###
     flag_log, dfdict = 0, {}
-    for file in os.listdir(SENSORS_PATH) :
+    for file in natsorted(os.listdir(SENSORS_PATH)) :
         if file.endswith("log") or file.endswith("LOG") :
             log_path = SENSORS_PATH + "/" + file
             print('\ninfo: Loadind autopilot data :', log_path)

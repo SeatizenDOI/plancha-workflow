@@ -354,7 +354,7 @@ def time_calibration_and_geotag(time_first_frame, frames_per_second, flag_gps, e
         csv_exiftool_frames = remove_outside_frames(csv_exiftool_frames, session_info, FRAMES_PATH)
 
     # Remove frames if filt_exclude_specific_datetimeUnix
-    if len(filt_exclude_specific_datetimeUnix) != 0:
+    if remove_frames_outside_mission and len(filt_exclude_specific_datetimeUnix) != 0:
         csv_exiftool_frames = remove_frames_from_specific_intervals(csv_exiftool_frames, FRAMES_PATH, filt_exclude_specific_datetimeUnix)
 
     print("\n-- 6 of 6 : IMPORT EXIF METADATA\n")
