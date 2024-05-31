@@ -39,9 +39,9 @@
       "utm_south": true,
       "utm_ellips": "WGS84",
       "_NB": "Keep only bathy points with centimetric gps correction (Q1)",
-      "filt_rtkfix": true,
+      "filt_rtkfix": false,
       "_NB": "Keep only bathy points inside mission interval",
-      "filt_waypoint": true,
+      "filt_waypoint": false,
       "_NB": "Exclude specific interval for bathy points and frames",
       "filt_exclude_specific_timeUS": []
    },
