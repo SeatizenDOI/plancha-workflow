@@ -466,6 +466,7 @@ def calc_ign_depth_at_gps_coord(df,dfdict,cfg_prog):
         utm_x_corr = utm_x - rot_vect_gps2pt[1]
         utm_y_corr = utm_y + rot_vect_gps2pt[0]
         
+        #! FIXME rot_vect_gps2pt est l'altitude de la planche. Si on est pas en ppk ni en rtk, il ne faut pas utiliser cette valeur car elle est abérante
         if cfg_bathy['use_geoid']==True:
             # Computing geoid altitude at corrected position
             geoid_alt = geoid_itp([utm_x_corr,utm_y_corr])[0]
