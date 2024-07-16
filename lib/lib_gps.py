@@ -12,6 +12,10 @@ from subprocess import Popen, PIPE, CalledProcessError
 from lib.lib_plot import *
 from lib.lib_tools import llh_to_txt, pos_to_llh, replace_line, get_hours_from_bin_sensors, gpx_to_llh
 
+# TODO REFACTO all this file.
+# !FIXME The workflow is messup for some use case.  
+
+
 def GPS_position_accuracy(SESSION_INFO_PATH, LLH_PATH, GPS_DEVICE_PATH, flag_rtkfix) :
     # Inputs :
     # 1.llh_path = path of the llh file 

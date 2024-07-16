@@ -1,12 +1,11 @@
-{  
+{
    "_NB": "If option is specified in command line, session_name and time_first_frame_UTC will come from this file. We can processed multiple session",
    "session_info": {
       "session_name": "",
-      "root": "/media/bioeos/F/202301-07_plancha_session/",
+      "root": "/media/bioeos/F/202407_plancha_session/",
       "_NB": "flag that deletes all the processed files for the current session (frames, gps processed files, bathy files etc)",
-      "delete_processed_session": true 
+      "delete_processed_session": true
    },
-   
    "dcim": {
       "exiftool_config_path": "./exiftool_roll_pitch_config_file.config",
       "frames_per_second": "2997/1000",
@@ -21,7 +20,6 @@
       "_NB": "Exclude specific interval for frames with UTC interval : [['2023:11:03 05:14:13.00', '2023:11:03 05:18:48.00']]",
       "filt_exclude_specific_datetimeUTC": []
    },
-
    "gps": {
       "ppk_config_path": "ppk_config/",
       "ppk_config_name": "ppk_config_file",
@@ -45,14 +43,12 @@
       "_NB": "Exclude specific interval for bathy points and frames",
       "filt_exclude_specific_timeUS": []
    },
-   
    "parse": {
       "gpskey": "GPS",
       "attkey": "ATT",
       "dpthkey": "RFND",
       "optkey": ""
    },
-   
    "bathy": {
       "offset_ant_beam": {
          "x": 0.15,
@@ -76,6 +72,6 @@
       "_NB": "method can be : linear, cubic, nearest",
       "method": "linear",
       "_NB": "3Dalgo can be : ballpivot, alphashape",
-      "3Dalgo":"ballpivot"
+      "3Dalgo": "ballpivot"
    }
 }

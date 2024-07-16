@@ -179,6 +179,27 @@ def delete_empty_folder(output_folder):
         if len(list(type_folder.iterdir())) == 0:
             type_folder.rmdir()
 
+def grab_frames_and_metadata_folder(session_path, frames_output: Path, metadata_folder_output: Path):
+
+    session_frames_path = Path(session_path, "PROCESSED_DATA/FRAMES")
+    session_metadata_path = Path(session_path, "METADATA")
+
+    if not Path.exists(session_frames_path) or not session_frames_path.is_dir():
+        print(f"Cannot access to folder frames with session {session_frames_path}")
+
+    if not Path.exists(session_metadata_path) or not session_metadata_path.is_dir():
+        print(f"Cannot access to folder metadata with session {session_metadata_path}")
+    
+    frames_output.mkdir(exist_ok=True, parents=True)
+    metadata_folder_output.mkdir(exist_ok=True, parents=True)
+    
+    print("Copying frames folder")
+    for file in session_frames_path.iterdir():
+        shutil.copy(file, frames_output)
+    print("Copying metadata folder")
+    for file in session_metadata_path.iterdir():
+        shutil.copy(file, metadata_folder_output)
+
 
 
 def parse_args():
@@ -209,6 +230,7 @@ def parse_args():
     parser.add_argument("-br", "--bathy_raster", action="store_true", help="Grab all bathy raster")
     parser.add_argument("-m", "--metadata", action="store_true", help="Grab all metadata file")
     parser.add_argument("-pr", "--predictions_raster", action="store_true", help="Grab all predictions raster and store by class name")
+    parser.add_argument("-f", "--frames", action="store_true", help="Reconstruct session with only frame and metadata")
 
     # Optional arguments.
     parser.add_argument("-is", "--index_start", default="0", help="Choose from which index to start")
@@ -254,6 +276,12 @@ def main(opt):
             
             date, place, asv, session_number = session_path.name.split("_")
             alpha3, opt_place = place.split("-")[0], place.split("-")[-1]
+
+            if opt.frames:
+                frames_output = Path(output_folder, session_path.name, "FRAMES")
+                metadata_folder_output = Path(output_folder, session_path.name, "METADATA")
+                grab_frames_and_metadata_folder(session_path, frames_output, metadata_folder_output)
+                continue
             
             if opt.bathy_raster:
                 grab_bathy_raster(session_path, bathy_output, opt_place)

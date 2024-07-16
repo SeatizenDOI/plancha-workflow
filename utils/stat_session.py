@@ -21,6 +21,8 @@
 
 """
 
+# !WARNING this code tends to become useless
+
 import traceback
 import pandas as pd
 from pathlib import Path
@@ -251,17 +253,23 @@ if __name__ == "__main__":
 
     root_folders = {
         "202210_plancha_session": "/media/bioeos/F/202210_plancha_session",
-        "202301-07_plancha_session": "/media/bioeos/F/202301-07_plancha_session",
-        "202305_plancha_session": "/media/bioeos/F/202305_plancha_session",
+
 
         # "2015_plancha_session": "/media/bioeos/E/2015_plancha_session",
         # "2021_plancha_session": "/media/bioeos/E/2021_plancha_session",
         "202211_plancha_session": "/media/bioeos/E/202211_plancha_session",
+        "202301-07_plancha_session": "/media/bioeos/F/202301-07_plancha_session",
+        "202305_plancha_session": "/media/bioeos/F/202305_plancha_session",
         "202309_plancha_session": "/media/bioeos/E/202309_plancha_session",
         "202310_plancha_session": "/media/bioeos/E/202310_plancha_session",
 
         "202311_plancha_session": "/media/bioeos/D/202311_plancha_session",
-        "202312_plancha_session": "/media/bioeos/D/202312_plancha_session"
+        "202312_plancha_session": "/media/bioeos/D/202312_plancha_session",
+
+        "202403_plancha_session": "/media/bioeos/F/202403_plancha_session",
+        "202404_plancha_session": "/media/bioeos/F/202404_plancha_session",
+        "202405_plancha_session": "/media/bioeos/F/202405_plancha_session",
+        "202406_plancha_session": "/media/bioeos/F/202406_plancha_session"
     }
 
     main(root_folders)
