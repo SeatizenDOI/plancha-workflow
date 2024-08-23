@@ -270,14 +270,14 @@ def compute_gps(SESSION_INFO_PATH, GPS_DEVICE_PATH, GPS_BASE_PATH, SESSION_NAME,
                         zip_ref.extractall(TEMP_LLH_FOLDER_PATH)
                     break
         if TEMP_LLH_FOLDER_PATH == "":
-            print("/!\\ GPS DEVICE DOESN'T HAVE LLH /!\\")
-            return "", flag_gps
-        # Get the gps file
-        for file in os.listdir(TEMP_LLH_FOLDER_PATH):
-            if file.endswith(".LLH"):
-                TEMP_LLH_PATH = TEMP_LLH_FOLDER_PATH + "/" + file
-                GPS_position_accuracy(SESSION_INFO_PATH, TEMP_LLH_PATH, GPS_DEVICE_PATH, flag_rtkfix)
-                break
+            print("[WARNING] No LLH found. Cannot create preliminary plot.")
+        else:
+            # Get the gps file
+            for file in os.listdir(TEMP_LLH_FOLDER_PATH):
+                if file.endswith(".LLH"):
+                    TEMP_LLH_PATH = TEMP_LLH_FOLDER_PATH + "/" + file
+                    GPS_position_accuracy(SESSION_INFO_PATH, TEMP_LLH_PATH, GPS_DEVICE_PATH, flag_rtkfix)
+                    break
     ########################################################################################
 
     # 0

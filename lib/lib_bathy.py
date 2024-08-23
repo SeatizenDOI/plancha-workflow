@@ -152,14 +152,20 @@ def parse_raw_bin(log_path, cfg_prog):
     print('func: parsing log for keys:')
     print(param_list,status_list)
     
-    filebuf = f'./tmp_{int(time.time())}.csv'
     for p in [*param_list, *status_list]:
         print('Reading data for entry:',p)
+
+        filepath = Path("/tmp", f'tmp_{int(time.time())}.csv')
+        filebuf = open(filepath, "w")
         
-        tmp_cmd = "python ./lib/mavlogdump.py --planner --format csv --type "+p+" "+log_path+" > "+filebuf
-        subprocess.call(tmp_cmd, shell=True)
-        dfdict[p] = pd.read_csv(filebuf, sep=";")
-        os.remove(filebuf)
+        tmp_cmd = ["python", "./lib/mavlogdump.py", "--planner", "--format", "csv", "--type", p, log_path]
+        with subprocess.Popen(tmp_cmd, stdout=filebuf, universal_newlines=True) as popen:
+            popen.wait() # Wait because sometimes Python is too fast.
+
+        filebuf.close()
+
+        dfdict[p] = pd.read_csv(filepath, sep=";")
+        filepath.unlink()
         
         print('found',len(dfdict[p]),'points')
         
@@ -796,13 +802,13 @@ def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
         out_file_path = str(Path(filepath, f"{sessiontag}_bathy_shapefile-contourline-{tags}.shp"))
         gdal_cmd = f'gdal_contour -b 1 -a {z_var} -i {interval_m} {raster_path} {out_file_path}'
         print('COUNTOUR LINE gdal cmd:',gdal_cmd)
-        subprocess.call(gdal_cmd, shell=True)
+        subprocess.run(gdal_cmd, shell=True)
 
         # shapefile with contour as filled polygon
         out_file_path = str(Path(filepath, f"{sessiontag}_bathy_shapefile-contourpoly-{tags}.shp"))
         gdal_cmd = f'gdal_contour -b 1 -p -amax {z_var} -i {interval_m} {raster_path} {out_file_path}'
         print('CONTOUR_POLY gdal cmd:',gdal_cmd)
-        subprocess.call(gdal_cmd, shell=True)
+        subprocess.run(gdal_cmd, shell=True)
 
     except:
         print(traceback.format_exc(), end="\n\n")
