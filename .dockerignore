@@ -8,3 +8,7 @@ postprocess_YYYMMDD/__pycache__/
 error.log
 *.md
 *.yml
+images
+utils
+csv
+LICENSE

@@ -29,7 +29,7 @@ This repository allows the data retrieved by the [Plancha](https://ocean-indien.
 
 ## Summary
 
-* [Docker](./docker/README.md)
+* [Docker](./docker.README.md)
 * [Installation](#installation)
 * [Usage](#usage)
 * [Workflow](#workflow)

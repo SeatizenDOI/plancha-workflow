@@ -1,9 +1,6 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9-slim-bullseye
 
-ARG session_name
-ENV env_session_name=$session_name
-
 # Install lib, create user.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget ffmpeg libimage-exiftool-perl rtklib gdal-bin && \
@@ -24,9 +21,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     natsort==8.4.0 && \
     useradd -ms /bin/bash seatizen
 
-# Copy entrypoint script into the container.
-COPY --chmod=0755 docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-
 # Add local directory and change permission.
 ADD --chown=seatizen ../. /home/seatizen/app/
 
@@ -37,4 +31,4 @@ WORKDIR /home/seatizen/app
 USER seatizen
 
 # Define the entrypoint script to be executed.
-ENTRYPOINT ["entrypoint.sh"]
+ENTRYPOINT ["python", "/home/seatizen/app/workflow.py"]
