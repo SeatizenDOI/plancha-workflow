@@ -8,7 +8,7 @@
 `docker push groderg/plancha-workflow-image:latest`
 
 ```bash
-docker build -t plancha-workflow-image:latest -f . && \
+docker build -t plancha-workflow-image:latest . && \
 docker tag plancha-workflow-image:latest groderg/plancha-workflow-image:latest && \
 docker push groderg/plancha-workflow-image:latest
 ```

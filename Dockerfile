@@ -31,4 +31,4 @@ WORKDIR /home/seatizen/app
 USER seatizen
 
 # Define the entrypoint script to be executed.
-ENTRYPOINT ["python", "/home/seatizen/app/workflow.py"]
+ENTRYPOINT ["python", "workflow.py"]
