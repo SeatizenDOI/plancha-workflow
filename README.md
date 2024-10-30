@@ -206,7 +206,7 @@ Contributions are welcome! To contribute, please follow these steps:
 
 ## License
 
-This framework is distributed under the wtfpl license. See `LICENSE` for more information.
+This framework is distributed under the CC0-1.0 license. See `LICENSE` for more information.
 
 <div align="center">
   <img src="https://github.com/SeatizenDOI/.github/blob/main/images/logo_partenaire.png?raw=True" alt="Partenaire logo" width="700">
