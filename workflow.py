@@ -46,7 +46,14 @@ def main(opt: Namespace) -> None:
         
         try:
             print("\n\n-- Launching " + session_base.session.name)
+
+            # Clean folder.
             session_base.prepare_folder(config_manager.get_folder_to_clean())    
+            
+            
+            # Identificate if video or image in dcim folder.
+
+            # Split videos into frames 
             pass
             
         except Exception:
