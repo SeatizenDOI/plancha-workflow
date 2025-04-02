@@ -1,7 +1,11 @@
 import traceback
+from pathlib import Path
 from argparse import ArgumentParser, Namespace
 
 from src.SessionBase import SessionBase
+from src.ConfigManager import ConfigManager
+from src.lib.lib_tools import print_plancha_header
+
 
 def parse_option() -> Namespace:
     parser = ArgumentParser(prog="plancha-workflow", description="Workflow between raw data and Seatizen data")
@@ -22,23 +26,37 @@ def parse_option() -> Namespace:
 
 
 def main(opt: Namespace) -> None:
+    print_plancha_header()
 
-    print(opt)
     session_fails = []
 
-    session = SessionBase(opt)
+    config_manager = ConfigManager(opt)
 
+    for args in config_manager.iterate_over_session():
 
-    try:
-        pass
-    except Exception:
-        # Print error
-        print(traceback.format_exc(), end="\n\n")
+        session_name, time_first_frame, number_first_frame, \
+        filt_exclude_specific_timeUS, depth_range_max, depth_range_min, \
+        filt_exclude_specific_datetimeUTC, rgp_station = args
+
+        session_path = Path(config_manager.get_root_path(), session_name)
+
+        if not session_path.exists(): continue
+
+        session_base = SessionBase(session_path)
+        
+        try:
+            print("\n\n-- Launching " + session_base.session.name)
+            session_base.prepare_folder(config_manager.get_folder_to_clean())    
+            pass
             
-        # Store sessions name
-        session_fails.append("")
-    finally:
-        pass
+        except Exception:
+            # Print error
+            print(traceback.format_exc(), end="\n\n")
+                
+            # Store sessions name
+            session_fails.append("")
+        finally:
+            config_manager.save_cfg_prog(session_base.prog_config_path)
 
 
 
