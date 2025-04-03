@@ -2,6 +2,7 @@ import shutil
 import pandas as pd
 from pathlib import Path
 
+from .GPSManager import GPSManager
 from .ConfigManager import ConfigManager
 from .ImageManager import ImageManager
 from .enum.FolderType import FolderType
@@ -27,7 +28,7 @@ class SessionBase:
 
         # Manager.
         self.image_manager = ImageManager(self.session.name, self.dcim_path, self.pd_frames_path)
-
+        self.gps_manager = GPSManager(self.gps_device_path, self.gps_base_path)
 
     def prepare_folder(self, folder_to_clean: list[FolderType]) -> None:
 
@@ -86,17 +87,22 @@ class SessionBase:
         })
 
         session_info.to_csv(self.session_info_path, index=False)
-    
-    
+     
     def split_videos(self, cm: ConfigManager) -> None:
         
         if not cm.can_split() or not self.image_manager.dcim_folder_is_video_folder() : return 
-
         self.image_manager.split_videos(cm.is_only_split(), cm.get_frames_per_second())
     
 
     def remove_first_frames(self, cm: ConfigManager) -> None:
 
         max_frame = cm.get_first_frame_to_keep()
-        
         self.image_manager.remove_first_frames(max_frame)
+
+
+
+    def compute_gps(self, cm: ConfigManager) -> None:
+
+        self.gps_manager.setup()
+
+        pass

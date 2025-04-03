@@ -130,16 +130,16 @@ class ConfigManager:
 
         ### Convert filt_exclude_specific_datetimeUnix to datetime and store it in cfg_prog. 
         ### Convert filt_exclude_specific_datetimeUTC to unix and add it to filt_exclude_specific_datetimeUnix
-        filt_exclude_specific_datetimeUTC = [] if filt_exclude_specific_datetimeUTC == "" else json.loads(filt_exclude_specific_datetimeUTC.replace("'", '"'))
-        datetimeUTC_to_datetimeUnix = [
-            [convert_datetime_to_datetime_unix(a), convert_datetime_to_datetime_unix(b)] 
-            for a, b in filt_exclude_specific_datetimeUTC
-        ]
-        filt_exclude_specific_datetimeUnix += datetimeUTC_to_datetimeUnix
-        filt_exclude_specific_datetimeUTC = [
-            [convert_datetime_unix_to_datetime(a), convert_datetime_unix_to_datetime(b)] 
-            for a, b in filt_exclude_specific_datetimeUnix
-        ]
+        # filt_exclude_specific_datetimeUTC = [] if filt_exclude_specific_datetimeUTC == "" else json.loads(filt_exclude_specific_datetimeUTC.replace("'", '"'))
+        # datetimeUTC_to_datetimeUnix = [
+        #     [convert_datetime_to_datetime_unix(a), convert_datetime_to_datetime_unix(b)] 
+        #     for a, b in filt_exclude_specific_datetimeUTC
+        # ]
+        # filt_exclude_specific_datetimeUnix += datetimeUTC_to_datetimeUnix
+        # filt_exclude_specific_datetimeUTC = [
+        #     [convert_datetime_unix_to_datetime(a), convert_datetime_unix_to_datetime(b)] 
+        #     for a, b in filt_exclude_specific_datetimeUnix
+        # ]
         self.cfg_prog['dcim']['filt_exclude_specific_datetimeUTC'] = filt_exclude_specific_datetimeUTC
 
          

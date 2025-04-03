@@ -61,6 +61,8 @@ def main(opt: Namespace) -> None:
             session_base.remove_first_frames(config_manager)
 
             ### GPS part.
+            session_base.compute_gps(config_manager)
+
 
             ### Bathy part.
 
