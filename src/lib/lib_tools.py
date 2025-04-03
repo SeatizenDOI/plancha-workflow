@@ -16,52 +16,6 @@ def print_plancha_header():
 ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝
     """)
 
-def clear_processed_session(frames_path, bathy_path, metadata_path, gps_base_path, gps_device_path) :
-    print("-- We are deleting already processed session: ")
-    
-    # Clean, remove and create FRAMES, BATHY, METADATA folder
-    for folder in list(filter(lambda x: x != "", [frames_path, bathy_path, metadata_path])):
-        print("\t* Deleting " + folder)
-        if os.path.exists(folder):
-            for item in os.listdir(folder):
-                os.remove(os.path.join(folder, item))
-            os.rmdir(folder)
-        os.mkdir(folder)
-
-    # Clean this type of architecture for GPS folders
-    # | a.zip         => keep
-    # | a/            => delete
-    # |   a.LLH       => delete
-    # |   a.TXT       => delete
-    # | b.txt         => delete
-    # | b.zip         => keep
-    # | b.gpx         => keep
-        
-
-    # Keep only zip or gpx file in GPS/BASE    
-    if os.path.exists(gps_base_path):
-        print("\t* Keeping only zip and gpx file in " + gps_base_path)
-        for item in os.listdir(gps_base_path):
-            item_path = os.path.join(gps_base_path, item)
-            if os.path.isdir(item_path) :
-                for subitem in os.listdir(item_path):
-                    os.remove(os.path.join(item_path, subitem))
-                os.rmdir(item_path)
-            elif not(item.endswith(".zip") or item.endswith(".gpx")):
-                os.remove(item_path)
-
-    # Keep only zip file in GPS/DEVICE
-    if os.path.exists(gps_device_path):
-        print("\t* Keeping only zip and gpx file in " + gps_device_path)
-        for item in os.listdir(gps_device_path):
-            item_path = os.path.join(gps_device_path, item)
-            if os.path.isdir(item_path) :
-                for subitem in os.listdir(item_path):
-                    os.remove(os.path.join(item_path, subitem))
-                os.rmdir(item_path)
-            elif not(item.endswith(".zip") or item.endswith(".gpx")):
-                os.remove(item_path)
-
 def convert_GMS_GWk_to_UTC_time(gpsweek,gpsseconds,leapseconds=0):
     datetimeformat = "%Y-%m-%d %H:%M:%S.%f"
     epoch = dt.datetime.strptime("1980-01-06 00:00:00.000",datetimeformat)
@@ -84,7 +38,7 @@ def replace_line(file_name, line_num, text):
         f.seek(0)
         f.writelines(lines)
 
-def llh_to_txt(llh_path) :
+def llh_to_txt(llh_path: Path) -> Path:
     # Inputs :
     # 1.llh_path = path of the llh file 
     
@@ -93,9 +47,7 @@ def llh_to_txt(llh_path) :
     # The function saves a txt file with the same information of the LLH file in the same directory
 
     # Get LLh file name and replace .LLH by .txt
-    llh_file_name = os.path.basename(os.path.normpath(llh_path))
-    txt_file_name = llh_file_name.replace("LLH", "txt")
-    txt_path = llh_path.replace(llh_file_name, txt_file_name)
+    txt_path = Path(llh_path.parent, f"{llh_path.stem}.txt")
 
     with open(llh_path, "r") as f:
         with open(txt_path, "w") as newf:
@@ -109,7 +61,7 @@ def llh_to_txt(llh_path) :
     
     return txt_path
 
-def pos_to_llh(pos_path) :
+def pos_to_llh(pos_path: Path) -> Path:
     # Inputs :
     # 1.pos_path = path of the pos file 
     
@@ -118,9 +70,7 @@ def pos_to_llh(pos_path) :
     # The function saves a LLH file with the same information of the pos file in the same directory
     
     # get POS file name and replace .pos by .LLH
-    pos_file_name = os.path.basename(os.path.normpath(pos_path))
-    llh_file_name = pos_file_name.replace("pos", "LLH")
-    llh_path = pos_path.replace(pos_file_name, llh_file_name)
+    llh_path = Path(pos_path.parent, f"{pos_path.stem}.pos")
 
     # open POS file 
     with open(pos_path, 'r') as f:
@@ -172,33 +122,32 @@ def gpx_to_llh(gpx_path):
     df.to_csv(Path(folder, FILENAME_LLH), index=False, sep=" ", header=False)
 
 
-def get_hours_from_bin_sensors(SESSION_NAME, sensors_path):
+def get_hours_from_bin_sensors(session_name: str, sensors_path: Path) -> tuple[int, int]:
     print("Get hours from bin sensors: ")
-    if not os.path.exists(sensors_path): return 0, 0
+    if not sensors_path.exists(): return 0, 0
 
     # Get utcoffset
-    alpha3code = SESSION_NAME.split("_")[1].split('-')[0]
+    alpha3code = session_name.split("_")[1].split('-')[0] # Extract REU from 20230201_REU-STLEU_ASV-1_01
     alpha2code = pycountry.countries.get(alpha_3 = alpha3code).alpha_2
     utcoffset = dt.datetime.now(pytz.timezone(dict(pytz.country_timezones)[alpha2code][0])).utcoffset().seconds//3600
 
     filebuf = './tmp.csv'
-    for file in os.listdir(sensors_path):
-        if file.endswith(".BIN"):
-            file_path = os.path.join(sensors_path, file)
+    for file in sensors_path.iterdir():
+        if file.suffix.lower() != ".bin": continue
 
-            # Parse bin.
-            tmp_cmd = "python lib/mavlogdump.py --planner --format csv --type GPS "+file_path+" > "+filebuf
-            subprocess.call(tmp_cmd, shell=True)
+        # Parse bin.
+        tmp_cmd = "python src/lib/mavlogdump.py --planner --format csv --type GPS "+str(file)+" > "+filebuf
+        subprocess.call(tmp_cmd, shell=True)
 
-            # Read csv and remove file buffer.
-            df = pd.read_csv(filebuf, sep=";")
-            os.remove(filebuf)
+        # Read csv and remove file buffer.
+        df = pd.read_csv(filebuf, sep=";")
+        os.remove(filebuf)
 
-            # Parse timestamp.
-            first_hour = dt.datetime.fromtimestamp(df.timestamp[0]).hour - utcoffset
-            last_hour = dt.datetime.fromtimestamp(df.timestamp[len(df)-1]).hour + 1 - utcoffset
-            print("Hours found: ", first_hour, last_hour)
-            return first_hour, last_hour
+        # Parse timestamp.
+        first_hour = dt.datetime.fromtimestamp(df.timestamp[0]).hour - utcoffset
+        last_hour = dt.datetime.fromtimestamp(df.timestamp[len(df)-1]).hour + 1 - utcoffset
+        print("Hours found: ", first_hour, last_hour)
+        return first_hour, last_hour
     return 0, 0
 
 def generate_theorique_waypoints_file(sensors_path, df_cmd):
@@ -253,11 +202,11 @@ def write_real_mission_interval(SESSION_INFO_PATH, df_gps, df_msg):
     session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
 
 
-def convert_datetime_to_datetime_unix(dt_value_in_str: str):
+def convert_datetime_to_datetime_unix(dt_value_in_str: str) -> int:
     """ Convert string datetime utc in timestamp """
     return int(dt.datetime.strptime(dt_value_in_str, '%Y:%m:%d %H:%M:%S.%f').replace(tzinfo=dt.timezone.utc).timestamp() * 1e9)
 
 
-def convert_datetime_unix_to_datetime(datetime_unix):
+def convert_datetime_unix_to_datetime(datetime_unix: int) -> str:
     """ Convert timestamp in string datetime utc """
     return dt.datetime.fromtimestamp(datetime_unix / 1e9, tz=dt.timezone.utc).strftime('%Y:%m:%d %H:%M:%S.%f')[:-3]

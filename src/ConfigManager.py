@@ -16,6 +16,7 @@ class ConfigManager:
         self.cfg_prog = None
         self.default_args = {}
         self.list_sessions = []
+        self.delta_time = None
         self.setup()
 
     def setup(self) -> None:
@@ -142,6 +143,8 @@ class ConfigManager:
         # ]
         self.cfg_prog['dcim']['filt_exclude_specific_datetimeUTC'] = filt_exclude_specific_datetimeUTC
 
+        self.delta_time = None
+
          
 
     def iterate_over_session(self):
@@ -201,6 +204,25 @@ class ConfigManager:
     
     def get_first_frame_to_keep(self) -> int:
         return int(self.cfg_prog["dcim"]["first_frame_to_keep"])
+    
+    def get_rgp_station(self) -> str:
+        return self.cfg_prog['gps']['rgp_station']
+    
+    def get_delta_time(self) -> str:
+
+        if self.delta_time == None:
+            fps = self.get_frames_per_second()
+            a, b = [float(i) for i in fps.split('/')] if "/" in fps else (float(fps), 1)
+            self.delta_time = str(1/(a/b))
+
+        return self.delta_time
+    
+    def get_ppk_config_path(self) -> Path:
+        ppk_config_file = Path(self.cfg_prog['gps']['ppk_config_path'], f"{self.cfg_prog['gps']['ppk_config_name']}.conf")
+
+        if not ppk_config_file.exists():
+            raise NameError("Cannot found ppk_config_file.")
+        return ppk_config_file
 
     # -- Setter part
 
@@ -214,3 +236,12 @@ class ConfigManager:
 
     def is_only_split(self) -> bool:
         return bool(self.opt.only_split)
+    
+    def is_rtkfix(self) -> bool:
+        return bool(self.cfg_prog["gps"]["filt_rtkfix"])
+    
+    def force_rgp(self) -> bool:
+        return bool(self.cfg_prog['gps']['force_use_rgp'])
+    
+    def gpsbaseposition_mean_on_llh(self) -> bool:
+        return bool(self.cfg_prog["gps"]["gpsbaseposition_mean_on_llh"])
