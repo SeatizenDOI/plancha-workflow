@@ -43,17 +43,27 @@ def main(opt: Namespace) -> None:
         if not session_path.exists(): continue
 
         session_base = SessionBase(session_path)
-        
+
         try:
             print("\n\n-- Launching " + session_base.session.name)
 
             # Clean folder.
             session_base.prepare_folder(config_manager.get_folder_to_clean())    
             
-            
-            # Identificate if video or image in dcim folder.
+            session_base.image_manager.setup(config_manager)
+            session_base.write_session_info(config_manager)
 
-            # Split videos into frames 
+            ### Image part.
+            session_base.split_videos(config_manager)
+
+            if config_manager.is_only_split(): continue
+
+            session_base.remove_first_frames(config_manager)
+
+            ### GPS part.
+
+            ### Bathy part.
+
             pass
             
         except Exception:

@@ -1,6 +1,8 @@
 import shutil
+import pandas as pd
 from pathlib import Path
 
+from .ConfigManager import ConfigManager
 from .ImageManager import ImageManager
 from .enum.FolderType import FolderType
 
@@ -21,9 +23,10 @@ class SessionBase:
 
         # Important files.
         self.prog_config_path = Path(self.metadata_path, "prog_config.json")
+        self.session_info_path = Path(self.metadata_path, "session_info.csv")
 
         # Manager.
-        image_manager = ImageManager(self.dcim_path, self.pd_frames_path)
+        self.image_manager = ImageManager(self.session.name, self.dcim_path, self.pd_frames_path)
 
 
     def prepare_folder(self, folder_to_clean: list[FolderType]) -> None:
@@ -62,7 +65,8 @@ class SessionBase:
                     shutil.rmtree(folder_to_remove)
 
         # Create folder.
-        for folder_to_create in [self.metadata_path, self.pd_frames_path, self.pd_bathy_path]:
+        # To avoid next error, we create SENSORS and DCIM folder.
+        for folder_to_create in [self.metadata_path, self.pd_frames_path, self.pd_bathy_path, self.sensors_path, self.dcim_path]:
             folder_to_create.mkdir(exist_ok=True, parents=True)
 
 
@@ -72,4 +76,27 @@ class SessionBase:
         if folder_type == FolderType.BATHY: return self.pd_bathy_path
     
 
+    def write_session_info(self, cm: ConfigManager) -> None:
+        print("\n-- Writing session info in csv file\n")
 
+        session_info = pd.DataFrame({
+            'frames_per_second': [cm.get_frames_per_second()], 
+            'leap_sec': [cm.get_leap_second()],
+            'time_first_frame': [cm.get_time_first_frame()] 
+        })
+
+        session_info.to_csv(self.session_info_path, index=False)
+    
+    
+    def split_videos(self, cm: ConfigManager) -> None:
+        
+        if not cm.can_split() or not self.image_manager.dcim_folder_is_video_folder() : return 
+
+        self.image_manager.split_videos(cm.is_only_split(), cm.get_frames_per_second())
+    
+
+    def remove_first_frames(self, cm: ConfigManager) -> None:
+
+        max_frame = cm.get_first_frame_to_keep()
+        
+        self.image_manager.remove_first_frames(max_frame)
