@@ -170,6 +170,9 @@ class ConfigManager:
     
     def get_session_name(self) -> str:
         return self.cfg_prog["session_info"]["session_name"]
+    
+    def get_exiftool_metadata_path(self) -> Path:
+        return Path(self.cfg_prog["dcim"]["exiftool_config_path"])
 
     def get_folder_to_clean(self) -> list[FolderType]:
         
@@ -327,11 +330,14 @@ class ConfigManager:
     def compute_bathy(self) -> bool:
         return not bool(self.opt.no_bathy)
 
-    def tag_images(self) -> bool:
-        return not bool(self.opt.no_annotate)
+    def dont_tags_frames(self) -> bool:
+        return bool(self.opt.no_tags)
     
     def filter_on_waypoints(self) -> bool:
         return bool(self.cfg_prog["gps"]["filt_waypoint"])
     
     def use_geoid(self) -> bool:
         return bool(self.cfg_prog["bathy"]["use_geoid"])
+    
+    def should_I_remove_frames_outside_mission(self) -> bool:
+        return bool(self.cfg_prog["dcim"]["remove_frames_outside_mission"])

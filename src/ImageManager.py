@@ -30,7 +30,7 @@ class ImageManager:
 
         if self.dcim_type == DCIMType.IMAGE:
             self.frame_path = self.dcim_path
-            self.relative_file_path = Path(self.session_name, "DCIM") # session_name/DCIM
+            self.relative_file_path = Path(cm.get_session_name(), "DCIM") # session_name/DCIM
             fps = self.get_frame_per_second_for_image()
             cm.set_frames_per_second(fps)
 
@@ -89,7 +89,7 @@ class ImageManager:
     def split_videos(self, split_only_first_video: bool, fps: str) -> None:
 
         count_video = 0
-        print("\n-- 1/6 : SPLITTING VIDEOS INTO FRAMES:")
+        print("\n-- SPLITTING VIDEOS INTO FRAMES:")
 
         if len(list(self.frame_path.iterdir())) > 0: 
             print("Videos already split in frames")
@@ -121,7 +121,7 @@ class ImageManager:
         print("End of splitting videos\n")
     
     
-    def remove_first_frames(self, max_frames):
+    def remove_first_frames(self, max_frames: int) -> None:
         if (max_frames <= 0): return
 
         print(f"-- Removing first frame")
@@ -136,7 +136,7 @@ class ImageManager:
             if video_number == 1 and max_frames == frame_number: break
     
 
-    def remove_outside_frames(self, csv_exiftool_frames, session_info, FRAMES_PATH):
+    def remove_outside_frames(self, csv_exiftool_frames: pd.DataFrame, session_info: pd.DataFrame) -> pd.DataFrame:
         print("\n-- Remove frames before first waypoint and after last waypoint\n")
 
         if "Mission_START" not in list(session_info) or "Mission_END" not in list(session_info) or "datetime_unix" not in csv_exiftool_frames:
@@ -161,7 +161,7 @@ class ImageManager:
 
         list_frames, cpt_frames = list(csv_exiftool_frames["FileName"]), 0
         # Remove outside frames.
-        for frame in Path(FRAMES_PATH).iterdir():
+        for frame in self.frame_path.iterdir():
             if frame.name not in list_frames:
                 cpt_frames += 1
                 frame.unlink()
@@ -169,7 +169,8 @@ class ImageManager:
         
         return csv_exiftool_frames
 
-    def remove_frames_from_specific_intervals(csv_exiftool_frames, FRAMES_PATH, filt_exclude_specific_datetimeUnix):
+
+    def remove_frames_from_specific_intervals(self, csv_exiftool_frames: pd.DataFrame, filt_exclude_specific_datetimeUnix: list) -> pd.DataFrame:
         print("\n-- Remove frames on specfic interval \n")
         
         if "datetime_unix" not in csv_exiftool_frames:
@@ -183,7 +184,7 @@ class ImageManager:
 
         list_frames, cpt_frames = list(csv_exiftool_frames["FileName"]), 0
         # Remove outside frames.
-        for frame in Path(FRAMES_PATH).iterdir():
+        for frame in self.frame_path.iterdir():
             if frame.name not in list_frames:
                 cpt_frames += 1
                 frame.unlink()

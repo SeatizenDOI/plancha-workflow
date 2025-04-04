@@ -13,7 +13,7 @@ def parse_option() -> Namespace:
     parser.add_argument("-csv", default=None, help="Path to csv file for session_name")
     parser.add_argument("-os", "--only-split", action="store_true", help="Only split images from videos")
     parser.add_argument("-ns", "--no-split", action="store_true", help="Don't split images from videos")
-    parser.add_argument("-na", "--no_annotate", action="store_true", help="Don't annotate images")
+    parser.add_argument("-na", "--no_tags", action="store_true", help="Don't tags images")
     parser.add_argument("-nb", "--no_bathy", action="store_true", help="Don't process bathy")
     parser.add_argument("-nc", "--no_clean", default="", help="Specify folder to clean f: FRAMES, m: METADATA, b: BATHY, g: GPS, Ex: -no_clean fm")
     parser.add_argument("-frgp", "--force_use_rgp", action="store_true", help="Force to use RGP station to compute base gps")
@@ -65,17 +65,18 @@ def main(opt: Namespace) -> None:
 
             ### Bathy part.
             session_base.compute_bathy(config_manager)
-
+            
             session_base.update_filt_exclude_interval(config_manager, filt_exclude_specific_datetimeUTC)
 
-            pass
+            ### Tags part
+            session_base.tags_frames(config_manager)
             
         except Exception:
             # Print error
             print(traceback.format_exc(), end="\n\n")
                 
             # Store sessions name
-            session_fails.append(session_base.name)
+            session_fails.append(session_base.session.name)
         finally:
             print("\n-- Finally, save plancha_config.json\n")
             config_manager.save_cfg_prog(session_base.prog_config_path)
