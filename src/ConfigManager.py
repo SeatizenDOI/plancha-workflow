@@ -301,6 +301,9 @@ class ConfigManager:
     def set_force_rgp(self, v: bool) -> None:
         self.cfg_prog['gps']['force_use_rgp'] = v
     
+    def set_filt_exclude_specific_datetimeUTC(self, filt_exclude_specific_datetimeUTC: list) -> None:
+        self.cfg_prog['dcim']['filt_exclude_specific_datetimeUTC'] = filt_exclude_specific_datetimeUTC
+    
     # -- Boolean method
 
     def can_split(self) -> bool:

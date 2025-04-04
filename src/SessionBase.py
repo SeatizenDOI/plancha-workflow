@@ -1,14 +1,18 @@
+import json
 import shutil
 import traceback
 import pandas as pd
 from pathlib import Path
 
 from .GPSManager import GPSManager
-from .ConfigManager import ConfigManager
 from .ImageManager import ImageManager
+from .BathyManager import BathyManager
+from .ConfigManager import ConfigManager
+
 from .enum.FolderType import FolderType
 
-from .BathyManager import BathyManager
+from .lib.lib_tools import convert_datetime_to_datetime_unix, convert_datetime_unix_to_datetime
+
 class SessionBase:
 
     def __init__(self, session_path: Path):
@@ -164,4 +168,14 @@ class SessionBase:
                     
             print("[ERROR] Something occur during bathy, continue to write metadata in images")
 
+
+    def update_filt_exclude_interval(self, cm: ConfigManager, filt_exclude_specific_datetimeUTC: str) -> None:
+
+        filt_exclude_specific_datetimeUTC_list = [] if filt_exclude_specific_datetimeUTC == "" else json.loads(filt_exclude_specific_datetimeUTC.replace("'", '"'))
+        datetimeUTC_to_datetimeUnix = [[convert_datetime_to_datetime_unix(a), convert_datetime_to_datetime_unix(b)] for a, b in filt_exclude_specific_datetimeUTC_list]
+        filt_exclude_specific_datetimeUnix += datetimeUTC_to_datetimeUnix
+        filt_exclude_specific_datetimeUTC_list = [[convert_datetime_unix_to_datetime(a), convert_datetime_unix_to_datetime(b)] for a, b in filt_exclude_specific_datetimeUnix]
+
+        cm.set_filt_exclude_specific_datetimeUTC(filt_exclude_specific_datetimeUTC_list)
+        
         

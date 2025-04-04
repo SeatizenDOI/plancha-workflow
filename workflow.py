@@ -66,6 +66,8 @@ def main(opt: Namespace) -> None:
             ### Bathy part.
             session_base.compute_bathy(config_manager)
 
+            session_base.update_filt_exclude_interval(config_manager, filt_exclude_specific_datetimeUTC)
+
             pass
             
         except Exception:
