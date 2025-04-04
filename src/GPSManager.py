@@ -13,7 +13,7 @@ from .ConfigManager import ConfigManager
 
 from .enum.StandardDeviationType import StandardDeviationType
 
-from .lib.lib_tools import llh_to_txt, get_hours_from_bin_sensors, replace_line, pos_to_llh
+from .lib.lib_tools import llh_to_txt, get_hours_from_bin_sensors, replace_line, pos_to_llh, gpx_to_llh
 from .lib.lib_plot import plot_gps_quality, plot_standard_deviation
 
 class GPSManager:
@@ -273,3 +273,13 @@ class GPSManager:
 
     def get_navigation_file_in_text(self) -> Path:
         return llh_to_txt(self.ppk_solution)
+    
+    def compute_gps_for_only_device(self) -> None:
+
+        if self.device_LLH_filepath == None:
+            # Try to find a GPX file.
+            for file in self.device_path.iterdir():
+                if file.suffix.lower() == ".gpx":
+                    self.ppk_solution = gpx_to_llh(file)
+        else:
+            self.ppk_solution = self.device_LLH_filepath

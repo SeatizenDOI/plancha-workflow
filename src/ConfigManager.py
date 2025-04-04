@@ -112,8 +112,8 @@ class ConfigManager:
         
         self.cfg_prog['dcim']['frames_per_second'] = self.default_args["frames_per_second"]
         
+        self.cfg_prog['mesh']['spacing_m'] = ""
         ### Add specific filtering interval values
-        print("Filttimeus", filt_exclude_specific_timeUS)
         if filt_exclude_specific_timeUS != "":
             self.cfg_prog['gps']['filt_exclude_specific_timeUS'] = json.loads(filt_exclude_specific_timeUS)
         else:

@@ -114,14 +114,11 @@ class SessionBase:
 
         # Check if we use llh_position:
         if not cm.use_llh_position():
-            #! FIXME Add GPX
-            self.gps_manager.GPS_position_accuracy(self.session_info_path, self.gps_manager.device_LLH_filepath, cm.is_rtkfix())
-            self.gps_manager.ppk_solution = self.gps_manager.device_LLH_filepath
-            return
+            self.gps_manager.compute_gps_for_only_device()
 
         # Based on base GPS data, we try to figure out if we can do PPK.
         # If user want to perform PPK with RGP station or if rinex files are not here we need to download rgp data.
-        if cm.force_rgp() or self.gps_manager.base_RINEX_filepath == None:
+        elif cm.force_rgp() or self.gps_manager.base_RINEX_filepath == None:
             print(f"Downloading RGP data from {cm.get_rgp_station()} station :")
             self.gps_manager.download_rgp(cm, self.session.name, self.pd_frames_path, self.sensors_path)
             cm.set_force_rgp(True)
@@ -132,13 +129,15 @@ class SessionBase:
             self.gps_manager.ppk(cm, self.session.name)
         else:
             print("We cannot do PPK on our data at the moment !")
+
+        if self.gps_manager.ppk_solution == None:
             self.gps_manager.ppk_solution = self.gps_manager.device_LLH_filepath
 
         # Get the final GPS file with or without PPK solution
         if self.gps_manager.ppk_solution != None:
             self.gps_manager.GPS_position_accuracy(self.session_info_path, self.gps_manager.ppk_solution, cm.is_rtkfix())
         else:
-            print("We do not have a navigation file.")
+            raise NameError("No Navigation where found.")
     
     def compute_bathy(self, cm: ConfigManager) -> None:
 
