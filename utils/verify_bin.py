@@ -27,7 +27,7 @@ def main(opt):
             file_path = os.path.join(path_directory, file)
 
             # Parse bin.
-            tmp_cmd = "python ../lib/mavlogdump.py --planner --format csv --type GPS "+file_path+" > "+filebuf
+            tmp_cmd = "python ../src/lib/mavlogdump.py --planner --format csv --type GPS "+file_path+" > "+filebuf
             subprocess.call(tmp_cmd, shell=True)
 
             # Read csv and remove file buffer.

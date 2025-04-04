@@ -16,7 +16,7 @@ def print_plancha_header():
 ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝
     """)
 
-def convert_GMS_GWk_to_UTC_time(gpsweek,gpsseconds,leapseconds=0):
+def convert_GMS_GWk_to_UTC_time(gpsweek: int, gpsseconds: float, leapseconds: int = 0):
     datetimeformat = "%Y-%m-%d %H:%M:%S.%f"
     epoch = dt.datetime.strptime("1980-01-06 00:00:00.000",datetimeformat)
     elapsed = dt.timedelta(days=int((gpsweek*7)),seconds=int(gpsseconds+leapseconds))
@@ -150,7 +150,7 @@ def get_hours_from_bin_sensors(session_name: str, sensors_path: Path) -> tuple[i
         return first_hour, last_hour
     return 0, 0
 
-def generate_theorique_waypoints_file(sensors_path, df_cmd):
+def generate_theoric_waypoints_file(sensors_path: Path, df_cmd: pd.DataFrame) -> None:
     """
         Create a waypoints file from a BIN file.
 
@@ -179,9 +179,8 @@ def generate_theorique_waypoints_file(sensors_path, df_cmd):
         file.seek(0,0)
         file.write("QGC WPL 110\n" + content)
 
-    return None, None
 
-def write_real_mission_interval(SESSION_INFO_PATH, df_gps, df_msg):
+def write_real_mission_interval(session_inof_path: Path, df_gps: pd.DataFrame, df_msg: pd.DataFrame) -> None:
     wp_datetime = []
     for _, row in df_msg.iterrows():
         if "Reached waypoint" not in row.Message: continue
@@ -196,10 +195,10 @@ def write_real_mission_interval(SESSION_INFO_PATH, df_gps, df_msg):
     start_wp, end_wp = wp_datetime[0], wp_datetime[-1]
 
     # Write information in session_info
-    session_info = pd.read_csv(SESSION_INFO_PATH)
+    session_info = pd.read_csv(session_inof_path)
     session_info.insert(len(session_info.columns), "Mission_START", [start_wp])
     session_info.insert(len(session_info.columns), "Mission_END", [end_wp])
-    session_info.to_csv(SESSION_INFO_PATH, sep = ',', index=False)
+    session_info.to_csv(session_inof_path, sep = ',', index=False)
 
 
 def convert_datetime_to_datetime_unix(dt_value_in_str: str) -> int:

@@ -1,16 +1,9 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Mar 15 12:17:30 2022
-
-@author: mjulien
-"""
-
-import pandas as pd
-import numpy as np
 import folium
+import numpy as np
+import pandas as pd
 import branca.colormap as cm
 
-def folium_map_gen_sat_layer_EsriSat():
+def folium_map_gen_sat_layer_EsriSat() -> folium.Map:
     fmap = folium.Map(max_zoom=25)
     tile = folium.TileLayer(
             tiles = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -22,7 +15,7 @@ def folium_map_gen_sat_layer_EsriSat():
     return fmap
 
 
-def folium_map_add_linepath(fmap,df,layername):
+def folium_map_add_linepath(fmap: folium.Map, df: pd.DataFrame, layername: str) -> folium.Map:
     group = folium.map.FeatureGroup(name=layername)
     # convert lat lon data to nparray
     points = np.array([df.Lat_corr, df.Lng_corr]).T
@@ -31,11 +24,12 @@ def folium_map_add_linepath(fmap,df,layername):
                     color="red", weight=1, opacity=1,
                     ).add_to(group)
     fmap.add_child(group)
-    #Set the zoom to the maximum possible
+    # Set the zoom to the maximum possible
     fmap.fit_bounds(group.get_bounds())
     return fmap
 
-def folium_map_add_scatterdata(fmap,df,layername):
+
+def folium_map_add_scatterdata(fmap: folium.Map, df: pd.DataFrame, layername: str) -> folium.Map:
     group = folium.map.FeatureGroup(name=layername)
     # clean 'nan' values in gridded data
     dbuf = df.copy()
@@ -54,6 +48,7 @@ def folium_map_add_scatterdata(fmap,df,layername):
     #Set the zoom to the maximum possible
     fmap.fit_bounds(group.get_bounds())
     return fmap
+
 
 def folium_map_combine_data_to_single_map(df_list,outdir,figname='bathymap',combine_mission=False,):
     print('\ninfo: Plot interactive map')

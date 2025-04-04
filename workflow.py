@@ -63,8 +63,8 @@ def main(opt: Namespace) -> None:
             ### GPS part.
             session_base.compute_gps(config_manager)
 
-
             ### Bathy part.
+            session_base.compute_bathy(config_manager)
 
             pass
             
@@ -73,8 +73,9 @@ def main(opt: Namespace) -> None:
             print(traceback.format_exc(), end="\n\n")
                 
             # Store sessions name
-            session_fails.append("")
+            session_fails.append(session_base.name)
         finally:
+            print("\n-- Finally, save plancha_config.json\n")
             config_manager.save_cfg_prog(session_base.prog_config_path)
 
 

@@ -227,7 +227,7 @@ while True:
     if m is None:
         # write the final csv line before exiting
         if args.format == 'csv' and csv_out:
-          csv_out[0] = "{:.8f}".format(last_timestamp)
+          csv_out[0] = "{:.8f}".format(last_timestamp) if last_timestamp else ""
           print(args.csv_sep.join(csv_out))
         break
     m_type = m.get_type()

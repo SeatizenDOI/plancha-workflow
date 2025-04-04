@@ -113,6 +113,7 @@ class ConfigManager:
         self.cfg_prog['dcim']['frames_per_second'] = self.default_args["frames_per_second"]
         
         ### Add specific filtering interval values
+        print("Filttimeus", filt_exclude_specific_timeUS)
         if filt_exclude_specific_timeUS != "":
             self.cfg_prog['gps']['filt_exclude_specific_timeUS'] = json.loads(filt_exclude_specific_timeUS)
         else:
@@ -159,7 +160,6 @@ class ConfigManager:
     def save_cfg_prog(self, prog_congig_path: Path) -> None:
         """ Save cfg prog file to provide path"""
 
-        print("\n-- Finally, save plancha_config.json\n")
         with open(prog_congig_path, 'w') as fp:
             json.dump(self.cfg_prog, fp,indent=3)
     
@@ -168,6 +168,9 @@ class ConfigManager:
     def get_root_path(self) -> str:
         return self.cfg_prog["session_info"]["root"]
     
+    def get_session_name(self) -> str:
+        return self.cfg_prog["session_info"]["session_name"]
+
     def get_folder_to_clean(self) -> list[FolderType]:
         
         # If no clean, return.
@@ -223,11 +226,80 @@ class ConfigManager:
         if not ppk_config_file.exists():
             raise NameError("Cannot found ppk_config_file.")
         return ppk_config_file
+    
+    def get_parse_keys(self) -> dict:
+        return self.cfg_prog["parse"]
+
+    def get_parse_key_gps(self) -> dict:
+        return self.cfg_prog["parse"]["gpskey"]
+    
+    def get_parse_key_att(self) -> str:
+        return self.cfg_prog["parse"]["attkey"]
+    
+    def get_parse_key_depth(self) -> str:
+        return self.cfg_prog["parse"]["dpthkey"]
+
+    def get_filt_exclude_specific_timeUS(self) -> list:
+        return self.cfg_prog["gps"]["filt_exclude_specific_timeUS"]
+    
+    def get_utm_zone(self) -> str:
+        return self.cfg_prog["gps"]["utm_zone"]
+
+    def get_utm_south(self) -> bool:
+        return self.cfg_prog["gps"]["utm_south"]
+    
+    def get_utm_ellips(self) -> str:
+        return self.cfg_prog["gps"]["utm_ellips"]
+    
+    def get_bathy_max_angle(self) -> int:
+        return int(self.cfg_prog['bathy']['max_angle'])
+    
+    def get_bathy_depth_min(self) -> int:
+        return int(self.cfg_prog['bathy']['dpth_range']['min'])
+
+    def get_bathy_depth_max(self) -> int:
+        return int(self.cfg_prog['bathy']['dpth_range']['max'])
+    
+    def get_bathy_dpth_win_s(self) -> float:
+        return float(self.cfg_prog['bathy']['dpth_win_s'])
+    
+    def get_bathy_dpth_valid_prop(self) -> float:
+        return float(self.cfg_prog['bathy']['dpth_valid_prop'])
+
+    def get_geoid_path(self) -> Path:
+        return Path(self.cfg_prog["bathy"]['geoid_path'])
+    
+    def get_off_ant_beam_x(self) -> float:
+        return float(self.cfg_prog["bathy"]['offset_ant_beam']['x'])
+
+    def get_off_ant_beam_y(self) -> float:
+        return float(self.cfg_prog["bathy"]['offset_ant_beam']['y'])
+    
+    def get_off_ant_beam_z(self) -> float:
+        return float(self.cfg_prog["bathy"]['offset_ant_beam']['z'])
+
+    def get_dpth_coeff(self) -> float:
+        return float(self.cfg_prog["bathy"]['dpth_coeff'])
+
+    def get_mesh_spacing_m(self) -> float:
+        return float(self.cfg_prog['mesh']['spacing_m'])
+
+    def get_mesh_method(self) -> str:
+        return self.cfg_prog['mesh']['method']
+
+    def get_mesh_3dalgo(self) -> str:
+        return self.cfg_prog['mesh']['3Dalgo']
 
     # -- Setter part
 
     def set_frames_per_second(self, frames_per_second: str) -> None:
         self.cfg_prog["dcim"]["frames_per_second"] = frames_per_second
+    
+    def set_mesh_spacing_m(self, spacing: float) -> None:
+        self.cfg_prog['mesh']['spacing_m'] = spacing
+    
+    def set_force_rgp(self, v: bool) -> None:
+        self.cfg_prog['gps']['force_use_rgp'] = v
     
     # -- Boolean method
 
@@ -248,3 +320,15 @@ class ConfigManager:
 
     def gpsbaseposition_mean_on_llh(self) -> bool:
         return bool(self.cfg_prog["gps"]["gpsbaseposition_mean_on_llh"])
+
+    def compute_bathy(self) -> bool:
+        return not bool(self.opt.no_bathy)
+
+    def tag_images(self) -> bool:
+        return not bool(self.opt.no_annotate)
+    
+    def filter_on_waypoints(self) -> bool:
+        return bool(self.cfg_prog["gps"]["filt_waypoint"])
+    
+    def use_geoid(self) -> bool:
+        return bool(self.cfg_prog["bathy"]["use_geoid"])

@@ -1,97 +1,82 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Mar 15 12:17:30 2022
-
-@author: mjulien
-"""
-import os
 import csv
-import json
 import time
 import pyproj
 import shutil
-import traceback
 import subprocess
 import numpy as np
 import pandas as pd
-import datetime as dt
-import geopandas as gpd
 from pathlib import Path
 import transforms3d as t3d
-from functools import partial
-from natsort import natsorted
+from datetime import datetime
 import matplotlib.pyplot as plt
-from shapely.geometry import Point
 
 from scipy.spatial import KDTree
 from scipy.interpolate import interp1d, LinearNDInterpolator, griddata
 
-from geocube.api.core import make_geocube
-from geocube.rasterize import rasterize_points_griddata
+from .lib_tools import convert_GMS_GWk_to_UTC_time
 
-from lib.lib_folium_maps import *
-from lib.lib_open3d_model import *
-from lib.lib_tools import replace_comma_by_dot, generate_theorique_waypoints_file, convert_GMS_GWk_to_UTC_time, write_real_mission_interval
+from ..ConfigManager import ConfigManager
 
-def clean_nullbyte_raw_log(log_path):
-    # time func execution
-    shutil.copy(log_path,log_path+'.bkp')
-    with open(log_path, 'rb') as myfile:
-        data = myfile.read()
+def count_null_values_in_file(log_path: Path) -> int:
+    with open(log_path, 'rb') as f:
+        data = f.read()
         nullcnt = data.count( b'\x00' )
-        print('... found',nullcnt,' NULL bytes')
-    if nullcnt:
-        with open(log_path, 'rb') as myfile:
-            print('... parsing')
-            data = myfile.readlines()
-            with open(log_path+'.tmp', 'w') as of:
-                print('... cleaning')
-                for line in data:
-                    strline = line.decode("utf-8")[:-1]
-                    of.write(strline.replace('\x00', ''))
-            with open(log_path+'.tmp', 'rb') as myfile:
-                print('... checking')
-                data = myfile.read()
-                nullcnt = data.count( b'\x00' )
-                print('... found',nullcnt,' NULL bytes in new file copy')
-            shutil.move( log_path+'.tmp', log_path )
-    return True
+        print('... found', nullcnt, ' NULL bytes')
+    return nullcnt
 
-def parse_raw_log(log_path, cfg_prog):
+
+def clean_nullbyte_raw_log(log_path: Path) -> None:
+
+    shutil.copy(log_path, Path(log_path.parent, f"{log_path.name}.bkp"))
+    tmp_log_path = Path(log_path.parent, f"{log_path.name}.tmp")
+
+
+    nullcnt = count_null_values_in_file(log_path)
+    if not nullcnt: return
+    
+    with open(log_path, 'rb') as f:
+        print('... parsing')
+        data = f.readlines()
+        
+        with open(tmp_log_path, 'w') as of:
+            print('... cleaning')
+            for line in data:
+                strline = line.decode("utf-8")[:-1]
+                of.write(strline.replace('\x00', ''))
+        
+    nullcnt = count_null_values_in_file(tmp_log_path)
+        
+    shutil.move(tmp_log_path, log_path)
+
+
+def parse_raw_log(log_path: Path, cfg_parse: dict) -> dict:
     # time func execution
-    texec = dt.datetime.now()
+    texec = datetime.now()
     
     print('Cleaning raw log ...')
     clean_nullbyte_raw_log(log_path)
     
-    cfg_parse = cfg_prog['parse']
-    
     # Status list (fixed)
     # DEBUG !!! (MJULIEN --> Suppres MSG from parsed lines, causes bug on some log files)
     # status_list=['MODE','ARM']
-    status_list=['MODE','ARM','MSG', 'CMD']
+    status_list=['MODE', 'ARM', 'MSG', 'CMD']
     
     # Read mandatory params from config dict
-    param_list=[cfg_parse['gpskey'] , # mandatory
-                cfg_parse['attkey'] , # mandatory
-                cfg_parse['dpthkey'], # mandatory
-                ]
+    param_list=[
+        cfg_parse['gpskey'] , # mandatory
+        cfg_parse['attkey'] , # mandatory
+        cfg_parse['dpthkey'], # mandatory
+    ]
     # Read optional params from config dict. Strip and split string in case of multiple params
     param_list.extend(cfg_parse['optkey'].strip().split(','))
     
     # init buffers
-    datadict={}
-    headdict={}
-    dfdict  ={}
-    for param in param_list:
+    datadict, headdict, dfdict = {}, {}, {}
+
+    for param in [*param_list, *status_list]:
         datadict[param] = []
         headdict[param] = []
         dfdict[param]   = []
-    for status in status_list:
-        datadict[status] = []
-        headdict[status] = []
-        dfdict[status]   = []
-    
     
     #Parsing the log file
     print('func: parsing log for keys:')
@@ -123,24 +108,24 @@ def parse_raw_log(log_path, cfg_prog):
         dfdict[param] = pd.DataFrame(datadict[param],columns=headdict[param][0])
 
     # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
+    print('func: exec time --> ',datetime.now() - texec)
     
     return dfdict
 
-def parse_raw_bin(log_path, cfg_prog):
+def parse_raw_bin(log_path: Path, cfg_parse: dict) -> dict:
     # time func execution
-    texec = dt.datetime.now()
-    
-    cfg_parse = cfg_prog['parse']
+    texec = datetime.now()
     
     # Status list (fixed)
-    status_list=['MODE','ARM','MSG', 'CMD']
+    status_list=['MODE', 'ARM', 'MSG', 'CMD']
     
     # Read mandatory params from config dict
-    param_list=[cfg_parse['gpskey'] , # mandatory
-                cfg_parse['attkey'] , # mandatory
-                cfg_parse['dpthkey'], # mandatory
-                ]
+    param_list = [
+        cfg_parse['gpskey'] , # mandatory
+        cfg_parse['attkey'] , # mandatory
+        cfg_parse['dpthkey'], # mandatory
+    ]
+
     # Read optional params from config dict. Strip and split string in case of multiple params
     opt = cfg_parse['optkey'].strip().split(',')
     if len(opt) > 0 and opt[0] != '':
@@ -158,7 +143,7 @@ def parse_raw_bin(log_path, cfg_prog):
         filepath = Path("/tmp", f'tmp_{int(time.time())}.csv')
         filebuf = open(filepath, "w")
         
-        tmp_cmd = ["python", "./lib/mavlogdump.py", "--planner", "--format", "csv", "--type", p, log_path]
+        tmp_cmd = ["python", "./src/lib/mavlogdump.py", "--planner", "--format", "csv", "--type", p, log_path]
         with subprocess.Popen(tmp_cmd, stdout=filebuf, universal_newlines=True) as popen:
             popen.wait() # Wait because sometimes Python is too fast.
 
@@ -170,23 +155,21 @@ def parse_raw_bin(log_path, cfg_prog):
         print('found',len(dfdict[p]),'points')
         
     # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
+    print('func: exec time --> ', datetime.now() - texec)
 
     return dfdict
 
-def build_dataframe_gps(dfdict, cfg_prog, TXT_PATH):
+def build_dataframe_gps(dfdict_dump_mavlog: dict, cm: ConfigManager, navigation_filepath: Path) -> tuple[pd.DataFrame, list]:
     # time func execution
-    texec = dt.datetime.now()
+    texec = datetime.now()
     
-    key = cfg_prog['parse']['gpskey']
-    df = dfdict[key].copy()
+    df = dfdict_dump_mavlog[cm.get_parse_key_gps()].copy()
 
     print('func: initial dataframe has',len(df),'points')
 
     # use LLH position instead of the LOG/BIN one
-    if cfg_prog['gps']['use_llh_position'] :
+    if cm.use_llh_position():
         # convert GMS time to UTC time in order to have a friendly date and time
-        cfg_gps = cfg_prog['gps']
         gpstime = [convert_GMS_GWk_to_UTC_time(df.GWk.values[i],df.GMS.values[i]/1000.0) for i in range(len(df))]
         df['GPS_time'] = gpstime
         # convert GPS_time to new unix column in order to do interpolation on LLH date and time
@@ -194,7 +177,7 @@ def build_dataframe_gps(dfdict, cfg_prog, TXT_PATH):
         df['datetime_unix'] = df['GPS_time'].values.astype('int64')
 
         # import LLH
-        csv_llh = pd.read_csv(TXT_PATH)
+        csv_llh = pd.read_csv(navigation_filepath)
         # import LLH file and match different date and time from LLH and BIN/LOG
         csv_llh["GPS_time"] = csv_llh['GPSDateStamp'] +" "+ csv_llh["GPSTimeStamp"]
         csv_llh["GPS_time"] = csv_llh["GPS_time"].str.replace("/", "-")
@@ -214,36 +197,35 @@ def build_dataframe_gps(dfdict, cfg_prog, TXT_PATH):
         df['Status'] = np.interp(df['datetime_unix'], csv_llh['datetime_unix'], csv_llh['fix'])
         df['Status'] = df['Status'].astype(int)
 
-    cfg_gps = cfg_prog['gps']
+
     
     # Filter data according to rtk fix status
-    if cfg_gps['filt_rtkfix'] == True :
+    if cm.is_rtkfix():
         # case where pos come from Reach LLH
-        if cfg_prog['gps']["use_llh_position"] == True:
+        if cm.use_llh_position():
             print('func: filter data according to PPK fix status (=1 in LLH file)')
             df = df[df.Status == 1]
-        # case where pos come from Reach LLH
-        if cfg_prog['gps']["use_llh_position"] == False:
+        else:
             print('func: filter data according to RTK fix status (=6 in autopilot log)')
             df = df[df.Status == 6]
 
     # Filter data according to waypoints enabled
-    if cfg_gps['filt_waypoint'] == True :
+    if cm.filter_on_waypoints():
         print('func: filter data according to waypoint messages')
         t_start = 0
         t_stop, i_stop = 0, 0
         flag_found_first_waypoint = 0
-        for i in range(0, len(dfdict['MSG'])):
+        for i in range(0, len(dfdict_dump_mavlog['MSG'])):
             # find start of the mission, i.e. first waypoint reached
             if (flag_found_first_waypoint == 0) : 
-                if 'Reached waypoint' in dfdict['MSG'].Message.values[i].strip():
-                    t_start = float(dfdict['MSG'].TimeUS.values[i])
+                if 'Reached waypoint' in dfdict_dump_mavlog['MSG'].Message.values[i].strip():
+                    t_start = float(dfdict_dump_mavlog['MSG'].TimeUS.values[i])
                     flag_found_first_waypoint = 1
-                    print("func: We'll start the mission at : ",  dfdict['MSG'].Message.values[i].strip())
+                    print("func: We'll start the mission at : ",  dfdict_dump_mavlog['MSG'].Message.values[i].strip())
             # find end of the mission  , i.e. last waypoint reached     
-            if 'Reached waypoint' in dfdict['MSG'].Message.values[i].strip():
-                t_stop, i_stop = float(dfdict['MSG'].TimeUS.values[i]), i
-        print("func: We'll end the mission at : ",  dfdict['MSG'].Message.values[i_stop].strip())      
+            if 'Reached waypoint' in dfdict_dump_mavlog['MSG'].Message.values[i].strip():
+                t_stop, i_stop = float(dfdict_dump_mavlog['MSG'].TimeUS.values[i]), i
+        print("func: We'll end the mission at : ",  dfdict_dump_mavlog['MSG'].Message.values[i_stop].strip())      
 
         if (t_start != 0):
                 df = df[df.TimeUS > t_start]
@@ -257,10 +239,10 @@ def build_dataframe_gps(dfdict, cfg_prog, TXT_PATH):
     
     # Filter data according to filter_after_waypoints
     filt_exclude_specific_datetimeUnix = []
-    if len(cfg_gps['filt_exclude_specific_timeUS']) != 0:
+    if len(cm.get_filt_exclude_specific_timeUS()) != 0:
         timestamp_key = "datetime_unix" if "datetime_unix" in df else "timestamp"
         factor_to_nanosaconds = 1.0 if "datetime_unix" in df else 1e9
-        for t_start, t_stop in cfg_gps['filt_exclude_specific_timeUS']:
+        for t_start, t_stop in cm.get_filt_exclude_specific_timeUS():
             if t_start > t_stop:
                 print(f"/!\\ t_start ({t_start}) > t_stop ({t_stop}) : Aborting filter on this interval/!\\")
                 continue
@@ -275,14 +257,14 @@ def build_dataframe_gps(dfdict, cfg_prog, TXT_PATH):
 
     print('func: Convert lat and long to UTM coordinates (pyproj)')
     
-    projzone  = cfg_gps['utm_zone']
-    projellps = cfg_gps['utm_ellips'] 
-    projsouth = cfg_gps['utm_south']
+    projzone = cm.get_utm_zone()
+    projellps = cm.get_utm_ellips() 
+    projsouth = cm.get_utm_south() 
     
     print(f'func: UTM zone: {projzone}, south: {projsouth}, ellips: {projellps}')
 
     #Building projection from WGS84 to utm 40
-    wgs2utm = pyproj.Proj(proj='utm', zone=projzone, ellps=projellps,south=projsouth)
+    wgs2utm = pyproj.Proj(proj='utm', zone=projzone, ellps=projellps, south=projsouth)
     utm_x,utm_y=wgs2utm(np.array(df.Lng),np.array(df.Lat))
     df['X_utm'] = utm_x
     df['Y_utm'] = utm_y
@@ -291,39 +273,36 @@ def build_dataframe_gps(dfdict, cfg_prog, TXT_PATH):
     df['GPS_time'] = gpstime
     
     # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
+    print('func: exec time --> ', datetime.now() - texec)
     
     return df, filt_exclude_specific_datetimeUnix
 
-def calc_att_at_gps_coord(df,dfdict,cfg_prog):
+def calc_att_at_gps_coord(df_bathy: pd.DataFrame, df_att: pd.DataFrame, att_max_angle: int) -> pd.DataFrame:
     # time func execution
-    texec = dt.datetime.now()
-        
-    attkey = cfg_prog['parse']['attkey']
-    att_max_angle = cfg_prog['bathy']['max_angle']
+    texec = datetime.now()
     
     print('func: bathy > build interpolator with ATT data')
     # Building linear interpolator for altitude (from IDOcean sources)
     # arr_att is a np aray with TimeUS, Roll, Pitch, Yaw as columns
-    arr_att = dfdict[attkey][['TimeUS','Roll','Pitch','Yaw']].to_numpy(dtype='float32')
-    attitude_itp=interp1d(arr_att[:,0],np.rad2deg(np.unwrap(np.deg2rad(arr_att[:,1::]),axis=0)),axis=0,fill_value='extrapolate')
+    arr_att = df_att[['TimeUS','Roll','Pitch','Yaw']].to_numpy(dtype='float32')
+    attitude_itp = interp1d(arr_att[:,0],np.rad2deg(np.unwrap(np.deg2rad(arr_att[:,1::]),axis=0)),axis=0,fill_value='extrapolate')
     
     print('func: bathy > Estimate attitude at gps position')
     
-    nbpt = len(df.TimeUS)
+    nbpt = len(df_bathy.TimeUS)
     attestim = np.ones((nbpt,3))
     attestim_center = np.ones((nbpt,3))
     for i in range(0,nbpt):
-        t = df.TimeUS.values[i]
+        t = df_bathy.TimeUS.values[i]
         attestim[i] = attitude_itp(t)
         attestim_center[i] = np.mod(attestim[i] + np.array([180, 180, 0]), 360) - np.array([180, 180, 0])  # Putting roll/pitch in [-180,180] and yaw in [0,360]
     
-    df['Roll']  = attestim[:,0]
-    df['Pitch'] = attestim[:,1]
-    df['Yaw']   = attestim[:,2]
-    df['Roll_center']  = attestim_center[:,0]
-    df['Pitch_center'] = attestim_center[:,1]
-    df['Yaw_center']   = attestim_center[:,2]
+    df_bathy['Roll']  = attestim[:,0]
+    df_bathy['Pitch'] = attestim[:,1]
+    df_bathy['Yaw']   = attestim[:,2]
+    df_bathy['Roll_center']  = attestim_center[:,0]
+    df_bathy['Pitch_center'] = attestim_center[:,1]
+    df_bathy['Yaw_center']   = attestim_center[:,2]
 
     
     print('func: bathy > Compute attitude deviation index')
@@ -332,26 +311,26 @@ def calc_att_at_gps_coord(df,dfdict,cfg_prog):
     print('func: bathy > att max angle (deg) :')
     print(att_max_angle , ' --> att index = max(picth,roll)/att_max_angle ')
     
-    nbpt = len(df.TimeUS)
-    attind = np.ones((nbpt,1))
-    for i in range(0,nbpt):
-        curr_angle = np.max([np.abs(df.Roll_center.values[i]),
-                             np.abs(df.Pitch_center.values[i])])
+    nbpt = len(df_bathy.TimeUS)
+    attind = np.ones((nbpt, 1))
+    for i in range(0, nbpt):
+        curr_angle = np.max([np.abs(df_bathy.Roll_center.values[i]),
+                             np.abs(df_bathy.Pitch_center.values[i])])
     
-        attind[i] = curr_angle/att_max_angle
+        attind[i] = curr_angle / att_max_angle
     
-    df['Att_index']  = attind[:,0]
+    df_bathy['Att_index'] = attind[:, 0]
     
     print('func: bathy > Remove points with attitude index > 1')
     
-    df = df[df.Att_index < 1]
+    df_bathy = df_bathy[df_bathy.Att_index < 1]
     
     # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
+    print('func: exec time --> ', datetime.now() - texec)
     
-    return df
+    return df_bathy
 
-#Building median filter for depth (from IDOcean)
+# Building median filter for depth (from IDOcean)
 def depth_med(depth_array, time_tree, time, radius, valid_prop, depth_range):
     radius_indices=time_tree.query_ball_point([time], radius)
     values = depth_array[radius_indices, 1]
@@ -361,14 +340,13 @@ def depth_med(depth_array, time_tree, time, radius, valid_prop, depth_range):
     else:  # Otherwise compute median of valid depths
         return (np.median(values[inliers]))
 
-def calc_raw_depth_at_gps_coord(df,dfdict,cfg_prog):
+def calc_raw_depth_at_gps_coord(df_bathy: pd.DataFrame, df_dpth: pd.DataFrame, cm: ConfigManager) -> pd.DataFrame:
     # time func execution
-    texec = dt.datetime.now()
+    texec = datetime.now()
 
-    dpthkey = cfg_prog['parse']['dpthkey']
-    dpth_med_time_win_us = cfg_prog['bathy']['dpth_win_s']*1e6
-    dpth_med_lim_m = [cfg_prog['bathy']['dpth_range']['min'],cfg_prog['bathy']['dpth_range']['max']]
-    dpth_med_valid_prop = cfg_prog['bathy']['dpth_valid_prop']
+    dpth_med_time_win_us = cm.get_bathy_dpth_win_s() * 1e6
+    dpth_med_lim_m = [cm.get_bathy_depth_min(), cm.get_bathy_depth_max()]
+    dpth_med_valid_prop = cm.get_bathy_dpth_valid_prop()
 
     print('func: bathy > Build kd-tree filter for depth computation')
     # arr_att is a np aray with TimeUS, Roll, Pitch, Yaw as columns
@@ -376,10 +354,10 @@ def calc_raw_depth_at_gps_coord(df,dfdict,cfg_prog):
     # WARNING : old plancha log depth as DPTH key and column is Depth
     # arr_dpth = dfdict[dpthkey][['TimeUS','Depth']].to_numpy(dtype='float32')
     # WARNING : new plancha (body V1A and v1B) log depth as RFND key and column is Dist
-    if dpthkey == 'DPTH':
-        arr_dpth = dfdict[dpthkey][['TimeUS','Depth']].to_numpy(dtype='float32')
+    if cm.get_parse_key_depth() == 'DPTH':
+        arr_dpth = df_dpth[['TimeUS','Depth']].to_numpy(dtype='float32')
     else:
-        arr_dpth = dfdict[dpthkey][['TimeUS','Dist']].to_numpy(dtype='float32')
+        arr_dpth = df_dpth[['TimeUS','Dist']].to_numpy(dtype='float32')
 
     # Check if echo sounder launch
     if sum(arr_dpth[:, 1]) == 0:
@@ -392,36 +370,33 @@ def calc_raw_depth_at_gps_coord(df,dfdict,cfg_prog):
     print(dpth_med_time_win_us*1e-6, dpth_med_lim_m, dpth_med_valid_prop )
     
    
-    nbpt = len(df.TimeUS)
+    nbpt = len(df_bathy.TimeUS)
     dpthestim = np.ones((nbpt,1))
     for i in range(0,nbpt):
-        t = df.TimeUS.values[i]
+        t = df_bathy.TimeUS.values[i]
         dpthestim[i]=depth_med(arr_dpth,time_tree,t,
                                dpth_med_time_win_us,
                                dpth_med_valid_prop,
                                dpth_med_lim_m)
     
-    df['Depth']  = -dpthestim[:,0]
+    df_bathy['Depth']  = -dpthestim[:,0]
     
     print('func: bathy > Remove points with depth = -1 (bad values)')
 
-    df = df[df.Depth != 1]
+    df_bathy = df_bathy[df_bathy.Depth != 1]
     
     # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
+    print('func: exec time --> ', datetime.now() - texec)
     
-    return df
+    return df_bathy
 
-def build_geoid_interpolator_from_csv(cfg_prog):
-    dfgeoid = pd.read_csv(cfg_prog['bathy']['geoid_path'])
+def build_geoid_interpolator_from_csv(cm: ConfigManager):
+    dfgeoid = pd.read_csv(cm.get_geoid_path())
     # clean geoid file
     dfgeoid = dfgeoid[dfgeoid.alt < 1000.0]
     dfgeoid = dfgeoid[dfgeoid.alt > -1000.0]
     # Convert lat to utm
-    projzone  = cfg_prog['gps']['utm_zone']
-    projellps = cfg_prog['gps']['utm_ellips'] 
-    projsouth = cfg_prog['gps']['utm_south']
-    wgs2utm = pyproj.Proj(proj='utm', zone=projzone, ellps=projellps,south=projsouth)
+    wgs2utm = pyproj.Proj(proj='utm', zone=cm.get_utm_zone(), ellps=cm.get_utm_ellips(),south=cm.get_utm_south())
     x, y = wgs2utm(np.array(dfgeoid.lng),np.array(dfgeoid.lat),inverse=False)
     # compute scipy ND interpolator
     xy = np.array((x,y)).T
@@ -429,33 +404,29 @@ def build_geoid_interpolator_from_csv(cfg_prog):
     geoid_itp = LinearNDInterpolator(xy,z)
     return geoid_itp
 
-def calc_ign_depth_at_gps_coord(df,dfdict,cfg_prog):
+def calc_ign_depth_at_gps_coord(df_bathy: pd.DataFrame, cm: ConfigManager) -> pd.DataFrame:
     # time func execution
-    texec = dt.datetime.now()
+    texec = datetime.now()
     
-    cfg_bathy = cfg_prog['bathy']
-    
-    utm_x_corr_list = []
-    utm_y_corr_list = []
-    depth_ign_list = []
-    geoid_alt_list = []
+    utm_x_corr_list, utm_y_corr_list = [], []
+    depth_ign_list, geoid_alt_list = [], []
     
     print('func: bathy > Computing pos and depth correction')
     
-    if cfg_bathy['use_geoid']==True:
+    if cm.use_geoid():
         print('func: bathy > Will compensate depth with gps alt and geoid grid')
-        geoid_itp = build_geoid_interpolator_from_csv(cfg_prog)
+        geoid_itp = build_geoid_interpolator_from_csv(cm)
     else:
         print('func: bathy > [warning] Depth not compensated with geoid and gps alt')
     
-    for ind, row in df.iterrows():
+    for ind, row in df_bathy.iterrows():
     
-        depthcorr = cfg_bathy['dpth_coeff'] * row.Depth
+        depthcorr = cm.get_dpth_coeff() * row.Depth
         
         # Vector that goes from the gps to the detected point on the ground
-        vect_gps2pt=[cfg_bathy['offset_ant_beam']['x'],
-                     cfg_bathy['offset_ant_beam']['y'],
-                     cfg_bathy['offset_ant_beam']['z']+depthcorr]
+        vect_gps2pt=[cm.get_off_ant_beam_x(),
+                     cm.get_off_ant_beam_y(),
+                     cm.get_off_ant_beam_z()+depthcorr]
         
         # Rotating the vector according to attitude to get its coordinates in a global coordinate sytem
         # with X facing North and Y facing West
@@ -473,7 +444,7 @@ def calc_ign_depth_at_gps_coord(df,dfdict,cfg_prog):
         utm_y_corr = utm_y + rot_vect_gps2pt[0]
         
         #! FIXME rot_vect_gps2pt est l'altitude de la planche. Si on est pas en ppk ni en rtk, il ne faut pas utiliser cette valeur car elle est abérante
-        if cfg_bathy['use_geoid']==True:
+        if cm.use_geoid():
             # Computing geoid altitude at corrected position
             geoid_alt = geoid_itp([utm_x_corr,utm_y_corr])[0]
             #print([utm_x_corr,utm_y_corr],geoid_alt)
@@ -490,38 +461,38 @@ def calc_ign_depth_at_gps_coord(df,dfdict,cfg_prog):
         depth_ign_list.append(depth_ign)
         geoid_alt_list.append(geoid_alt)
     
-    df['X_utm_corr'] = utm_x_corr_list
-    df['Y_utm_corr'] = utm_y_corr_list
-    df['Depth_corr'] = depth_ign_list
-    df['Geoid_alt']  = geoid_alt_list
+    df_bathy['X_utm_corr'] = utm_x_corr_list
+    df_bathy['Y_utm_corr'] = utm_y_corr_list
+    df_bathy['Depth_corr'] = depth_ign_list
+    df_bathy['Geoid_alt']  = geoid_alt_list
     
-    projzone  = cfg_prog['gps']['utm_zone']
-    projellps = cfg_prog['gps']['utm_ellips'] 
-    projsouth = cfg_prog['gps']['utm_south']
+    projzone = cm.get_utm_zone()
+    projellps = cm.get_utm_ellips()
+    projsouth = cm.get_utm_south()
     
     print(f'func: UTM zone: {projzone}, south: {projsouth}, ellips: {projellps}')
     #Building projection from WGS84 to utm 40
-    wgs2utm = pyproj.Proj(proj='utm', zone=projzone, ellps=projellps,south=projsouth)
-    lon, lat = wgs2utm(np.array(df.X_utm_corr),np.array(df.Y_utm_corr),inverse=True)
-    df['Lat_corr'] = lat
-    df['Lng_corr'] = lon
+    wgs2utm = pyproj.Proj(proj='utm', zone=projzone, ellps=projellps, south=projsouth)
+    lon, lat = wgs2utm(np.array(df_bathy.X_utm_corr),np.array(df_bathy.Y_utm_corr),inverse=True)
+    df_bathy['Lat_corr'] = lat
+    df_bathy['Lng_corr'] = lon
     
     # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
+    print('func: exec time --> ', datetime.now() - texec)
     
-    return df
+    return df_bathy
 
-def gen_gridded_depth_data(df,cfg_prog):
+def gen_gridded_depth_data(df_bathy: pd.DataFrame, cm: ConfigManager) -> pd.DataFrame:
     # time func execution
-    texec = dt.datetime.now()
+    texec = datetime.now()
 
-    spacing_m = cfg_prog['mesh']['spacing_m']
+    spacing_m = cm.get_mesh_spacing_m()
     
-    utm_mesh_bounds = [np.min(df.X_utm_corr),np.max(df.X_utm_corr),
-                       np.min(df.Y_utm_corr),np.max(df.Y_utm_corr)]
+    utm_mesh_bounds = [np.min(df_bathy.X_utm_corr),np.max(df_bathy.X_utm_corr),
+                       np.min(df_bathy.Y_utm_corr),np.max(df_bathy.Y_utm_corr)]
     
-    latlon_mesh_bounds = [np.min(df.Lat_corr),np.max(df.Lat_corr),
-                          np.min(df.Lng_corr),np.max(df.Lng_corr)]
+    latlon_mesh_bounds = [np.min(df_bathy.Lat_corr),np.max(df_bathy.Lat_corr),
+                          np.min(df_bathy.Lng_corr),np.max(df_bathy.Lng_corr)]
     
     xi = np.arange(utm_mesh_bounds[0],utm_mesh_bounds[1],spacing_m)
     yi = np.arange(utm_mesh_bounds[2],utm_mesh_bounds[3],spacing_m)
@@ -531,23 +502,23 @@ def gen_gridded_depth_data(df,cfg_prog):
     print(len(xi),'x',len(xi.T),latlon_mesh_bounds)
     
     # interpolate
-    x = np.array(df.X_utm_corr)
-    y = np.array(df.Y_utm_corr)
-    z = np.array(df.Depth_corr)
-    zi = griddata((x,y),z,(xi,yi),method=cfg_prog['mesh']['method'])
+    x = np.array(df_bathy.X_utm_corr)
+    y = np.array(df_bathy.Y_utm_corr)
+    z = np.array(df_bathy.Depth_corr)
+    zi = griddata((x,y),z,(xi,yi),method = cm.get_mesh_method())
     
     # shape gridded data to vectors
     xi = xi.reshape(xi.size,1)
     yi = yi.reshape(yi.size,1)
     zi = zi.reshape(zi.size,1)
     
-    projzone  = cfg_prog['gps']['utm_zone']
-    projellps = cfg_prog['gps']['utm_ellips'] 
-    projsouth = cfg_prog['gps']['utm_south']
+    projzon  = cm.get_utm_zone()
+    projellps = cm.get_utm_ellips()
+    projsouth = cm.get_utm_south()
     
-    print(f'func: UTM zone: {projzone}, south: {projsouth}, ellips: {projellps}')
+    print(f'func: UTM zone: {projzon}, south: {projsouth}, ellips: {projellps}')
     #Building projection from WGS84 to utm 40
-    wgs2utm = pyproj.Proj(proj='utm', zone=projzone, ellps=projellps,south=projsouth)
+    wgs2utm = pyproj.Proj(proj='utm', zone=projzon, ellps=projellps, south=projsouth)
     loni, lati = wgs2utm(xi,yi,inverse=True)
        
     df_gridded = pd.DataFrame(np.hstack((xi,yi,zi,lati,loni)),
@@ -559,281 +530,43 @@ def gen_gridded_depth_data(df,cfg_prog):
     df_gridded = df_gridded.reset_index(drop=True)
     
     # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
+    print('func: exec time --> ',datetime.now() - texec)
     
     return df_gridded
 
-def plot_basic_bathy_data_time(df,BATHY_PATH,fname='0'):
+def plot_basic_bathy_data_time(df_bathy: pd.DataFrame, bathy_path: Path, fname: str = '0') -> None:
    
     fig = plt.figure()
     ax0 = fig.add_subplot(311)
-    df.plot.line(x='TimeUS',y=['Att_index'],
+    df_bathy.plot.line(x='TimeUS',y=['Att_index'],
                  ax=ax0,grid=True)
     ax1 = fig.add_subplot(312,sharex=ax0)
-    df.plot.line(x='TimeUS',y=['Alt','Geoid_alt'],
+    df_bathy.plot.line(x='TimeUS',y=['Alt','Geoid_alt'],
                  ax=ax1,grid=True)
     ax2 = fig.add_subplot(313,sharex=ax0)
-    df.plot.line(x='TimeUS',y=['Depth','Depth_corr'],
+    df_bathy.plot.line(x='TimeUS',y=['Depth','Depth_corr'],
                  ax=ax2,grid=True)
     
     sizes_inches = 12
-    figpath = Path(BATHY_PATH, f'attitude_depth_timeplot_{fname}.png')
+    figpath = Path(bathy_path, f'attitude_depth_timeplot_{fname}.png')
     fig.set_size_inches(sizes_inches,sizes_inches)
     fig.savefig(figpath,dpi=600)
 
-def plot_basic_bathy_data_2D(df, BATHY_PATH,fname='0'):
+def plot_basic_bathy_data_2D(df_bathy: pd.DataFrame, bathy_path: Path, fname: str = '0') -> None:
     
     fig2d = plt.figure()
     ax2d = fig2d.add_subplot(111)
-    df.plot.scatter(x='X_utm_corr',y='Y_utm_corr',c='Depth_corr',
+    df_bathy.plot.scatter(x='X_utm_corr',y='Y_utm_corr',c='Depth_corr',
                     ax=ax2d, colormap='viridis')
     ax2d.axes.set_aspect('equal')
     ax2d.grid()
     
     sizes_inches = 12
-    figpath = Path(BATHY_PATH, f'depth_samples_utmcoord_{fname}.png')
+    figpath = Path(bathy_path, f'depth_samples_utmcoord_{fname}.png')
     fig2d.set_size_inches(sizes_inches,sizes_inches)
     fig2d.savefig(figpath,dpi=600)
 
-def run_bathy_analysis(cfg_prog, BATHY_PATH, TXT_PATH, SENSORS_PATH, SESSION_INFO_PATH):
-    
-    ##### section : load data ###
-    flag_log, dfdict = 0, {}
-    for file in natsorted(os.listdir(SENSORS_PATH)) :
-        if file.endswith("log") or file.endswith("LOG") :
-            log_path = SENSORS_PATH + "/" + file
-            print('\ninfo: Loadind autopilot data :', log_path)
-            dfdict = parse_raw_log(log_path, cfg_prog)
-            flag_log = 1
-            break
-        if file.endswith("bin") or file.endswith("BIN") :
-            log_path = SENSORS_PATH + "/" + file
-            print('\ninfo: Loadind autopilot data :', log_path)
-            dfdict = parse_raw_bin(log_path, cfg_prog)
-            flag_log = 1
-            break
-            
-    if not flag_log :
-        print("\ninfo: We do not have a log file or bin file. Abort bathy processing")
-        return {}, []
-    else:
-        print("\n-- 3A of 6 : BATHIMETRY PROCESSING\n")
-
-    print('\ninfo: Generate waypoints file from bin')
-    generate_theorique_waypoints_file(SENSORS_PATH, dfdict["CMD"])
-    
-    print('\ninfo: Write start and end GPStime of the mission in session_info')
-    write_real_mission_interval(SESSION_INFO_PATH, dfdict[cfg_prog["parse"]["gpskey"]], dfdict["MSG"])
-
-    print('\ninfo: Build base dataframe from GPS')
-    df, filt_exclude_specific_datetimeUnix = build_dataframe_gps(dfdict,cfg_prog, TXT_PATH)
-    print('info: number of point in main dataframe : ', len(df))
-
-    if (len(df) == 0): 
-        print("No more points to analyze due to filtering")
-        return df, filt_exclude_specific_datetimeUnix
-    
-    print('info: GPS log starts >',df.GPS_time.values[0])
-    print('info: GPS log ends   >',df.GPS_time.values[-1])
-    
-    print('\ninfo: Estimate attitude at GPS positions')
-    df = calc_att_at_gps_coord(df,dfdict,cfg_prog)
-    print('info: number of point in main dataframe : ', len(df))
-    
-    print('\ninfo: Estimate raw depth at GPS positions')
-    df = calc_raw_depth_at_gps_coord(df,dfdict,cfg_prog)
-    print('info: number of point in main dataframe : ', len(df))
-    
-    print('\ninfo: Correct depth values')
-    df = calc_ign_depth_at_gps_coord(df,dfdict,cfg_prog)
-    print('info: number of point in main dataframe : ', len(df))
-    
-    if (len(df) == 0): 
-        print("No more points to analyze due to filtering")
-        return df, filt_exclude_specific_datetimeUnix
-
-    print('\ninfo: Save to file')
-    
-    # create folder
-    if not os.path.exists(BATHY_PATH):
-        os.makedirs(BATHY_PATH)
-        
-    # dump processed data
-    filepath = BATHY_PATH + "/"
-    df.to_csv(filepath+'bathy_preproc.csv',sep=',',index=False)
-    
-    # dump associated metadata
-    metadata = cfg_prog
-    metadata['creation'] = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(filepath+'bathy_preproc.csv.metadata', 'w') as fp:
-        json.dump(cfg_prog, fp,indent=3)
-    
-    ###### section : plot data #####
-    
-    print('\ninfo: Plot data')
-    
-    plot_basic_bathy_data_time(df, BATHY_PATH,'preproc')
-    plot_basic_bathy_data_2D(df, BATHY_PATH,'preproc')
-    
-    print('\ninfo: Generate interactive map')
-    # generate map base layer
-    fmap = folium_map_gen_sat_layer_EsriSat()
-    # add scatter data (layer name have to be unique)
-    fmap = folium_map_add_scatterdata(fmap,df,'depth')
-    # add line data (layer name have to be unique)
-    fmap = folium_map_add_linepath(fmap,df,'track')
-    # Add layer control to show/hide data
-    folium.LayerControl().add_to(fmap)
-    
-    print('\ninfo: Save interactive map')
-    fmap.save(filepath + '/webmap_usv_track.html')
-    
-    return df, filt_exclude_specific_datetimeUnix
-
-def run_bathy_postprocessing(df, cfg_prog, BATHY_PATH):
-    ###### section : interpolate bathy to regular grid
-    # time func execution
-    texec = dt.datetime.now()
-    
-    print('\nRunning open3D modelization...')
-
-    # load initial data to compute average distance before generating gridded data
-    print('Computing initial point cloud average distance')
-    # get x, y, and z values in a numpy array
-    xyz = np.array(df[['X_utm_corr','Y_utm_corr','Depth_corr']])
-    # xyz = np.array(df[['Lng_corr','Lat_corr','Depth_corr']])
-    # build point cloud from xyz matrix
-    pcd, avgdist, stddist = build_o3d_pointcloud(xyz)
-    print('stddist >>>>>>',stddist)
-    # gen gridded data
-    print('Generating gridded data')
-    cfg_prog['mesh']['spacing_m'] = np.round((avgdist+3*stddist),3)
-    df_grid = gen_gridded_depth_data(df,cfg_prog)
-    
-    # get x, y, and z values in a numpy array
-    print('Computing final point cloud and mesh')
-    xyz = np.array(df_grid[['X_utm_corr','Y_utm_corr','Depth_corr']])
-    # build point cloud from xyz matrix
-    pcd, avgdist , _ = build_o3d_pointcloud(xyz)
-    # build mesh with faces from point cloud
-    mesh = build_o3d_trimesh(pcd,avgdist,method=cfg_prog['mesh']['3Dalgo'])
-    
-    print('Done ... open3D mesh computed')
-    
-    print('\ninfo: Save gridded data to csv file')
-
-    # create folder
-    if not os.path.exists(BATHY_PATH):
-        os.makedirs(BATHY_PATH)
-    
-    # set current path vars
-    filepath = BATHY_PATH + "/"
-    sessiontag = cfg_prog['session_info']['session_name']
-    
-    # set tags for file names
-    tags = '{0}'.format(cfg_prog['mesh']['method'])
-    
-    # dump postprocessed data
-    df_grid.to_csv(filepath+'bathy_postproc_'+tags+'.csv',sep=',',index=False)
-    
-    # dump associated metadata
-    metadata = cfg_prog
-    metadata['creation'] = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(filepath+'bathy_postproc_'+tags+'.csv.metadata', 'w') as fp:
-        json.dump(cfg_prog, fp,indent=3)
-    
-    # Plot post-processed bathy data
-    print('\ninfo: Generate simple plot of post-processed data')
-    plot_basic_bathy_data_2D(df_grid, BATHY_PATH,'postproc_'+tags)   
-
-    # set tags for file names
-    tags = '{0}'.format(cfg_prog['mesh']['method'])
-    
-    # Shapefile with geopandas
-    print('\ninfo: Generating shapefile from gridded data')
-    df_shp = df_grid[['Lng_corr','Lat_corr','Depth_corr']]
-    df_shp.columns = ['lng','lat','depth']
-    df_shp_geometry = df_shp.assign(geometry=df_shp.apply(lambda row: Point(row.lng,row.lat,row.depth),axis=1))
-
-    gdf = gpd.GeoDataFrame(df_shp_geometry, geometry=df_shp_geometry.geometry)
-    gdf.set_crs(epsg=4326, inplace=True)
-    gdf.to_file(filepath+sessiontag+'_bathy_shapefile-pointcloud-'+tags+'.shp')
-    print("Shapefile created")
-
-    # set tags for file names
-    tags = '{0}'.format(cfg_prog['mesh']['method'])
-
-    # Raster with geocube
-    print('\ninfo: Generating raster from gridded data')
-    resol_lng = np.median([np.abs(gdf.iloc[i].lng - gdf.iloc[i+1].lng) for i in range(len(gdf)-1)])
-    resol_lat = np.median([np.abs(gdf.iloc[i].lat - gdf.iloc[i+1].lat) for i in range(len(gdf)-1)])
-    resol = np.min([resol_lng, resol_lat])
-    maxnbpt = 1e6
-    condpt = ((np.max(gdf.lng.values)-np.min(gdf.lng.values))/resol) * ((np.max(gdf.lat.values)-np.min(gdf.lat.values))/resol)
-    reduceTime = 0
-    while condpt >= maxnbpt:
-        resol = resol*1.1
-        condpt = ((np.max(gdf.lng.values)-np.min(gdf.lng.values))/resol) * ((np.max(gdf.lat.values)-np.min(gdf.lat.values))/resol)
-        reduceTime += 1
-    print(f'reducing raster resolution {reduceTime} times, file too big otherwise ...')
-    print('Done adjusting raster resolution ...')
-    print('Building geocube object')
-    geo_grid = make_geocube(
-        vector_data=gdf,
-        measurements=['depth'],
-        resolution=(-resol, resol),
-        rasterize_function=partial(rasterize_points_griddata, filter_nan=True,  method=cfg_prog['mesh']['method']),
-    )
-    raster_path = str(Path(filepath, f"{sessiontag}_bathy_raster-{tags}.tif"))
-    print(f'Rasterize it: {raster_path}')
-    geo_grid["depth"].rio.to_raster(raster_path)
-    print("Raster created")
-
-    # Shapefile with countours
-    print('\ninfo: Generating shapefile with contour lines from raster')
-    try:
-        # shapefile with countour lines polygons from raster
-        nb_line = 10
-        z_var = 'depth' # name of columns with depth in tiff file
-        interval_m = (np.max(gdf[z_var].values)-np.min(gdf[z_var].values))/nb_line
-        interval_m = str(interval_m) # in meter, cast to string
-
-        # shapefile with contour as lines
-        out_file_path = str(Path(filepath, f"{sessiontag}_bathy_shapefile-contourline-{tags}.shp"))
-        gdal_cmd = f'gdal_contour -b 1 -a {z_var} -i {interval_m} {raster_path} {out_file_path}'
-        print('COUNTOUR LINE gdal cmd:',gdal_cmd)
-        subprocess.run(gdal_cmd, shell=True)
-
-        # shapefile with contour as filled polygon
-        out_file_path = str(Path(filepath, f"{sessiontag}_bathy_shapefile-contourpoly-{tags}.shp"))
-        gdal_cmd = f'gdal_contour -b 1 -p -amax {z_var} -i {interval_m} {raster_path} {out_file_path}'
-        print('CONTOUR_POLY gdal cmd:',gdal_cmd)
-        subprocess.run(gdal_cmd, shell=True)
-
-    except:
-        print(traceback.format_exc(), end="\n\n")
-        print('\n--- WARNING ---')
-        print('Problem occurs when generating shapefile with countours with gdal. Done nothing ...')
-    print('Done ...')
-    
-    # set tags for file names
-    tags = '{0}-{1}'.format(cfg_prog['mesh']['method'],
-                            cfg_prog['mesh']['3Dalgo'])
-
-    # Write 3D object to .ply file
-    print('\ninfo: Writing current shapes to ply file in :',filepath)
-    ply_file_name = Path(BATHY_PATH, f'{sessiontag}_bathy_3dmodel-{tags}.ply')
-    o3d.io.write_triangle_mesh(str(ply_file_name), mesh, write_ascii=True)
-
-    # change , in . in .ply file if it exist
-    replace_comma_by_dot(ply_file_name)
-    
-    # time func execution
-    print('func: exec time --> ',dt.datetime.now() - texec)
-    
-    return cfg_prog
-
-def bathy_preproc_to_txt(bathy_preproc_path) :
+def bathy_preproc_to_txt(bathy_preproc_path: Path) -> Path:
     # Inputs :
     # 1.bathy_preproc = path of the bathy_preproc file 
     
@@ -842,12 +575,11 @@ def bathy_preproc_to_txt(bathy_preproc_path) :
     # The function saves a txt file with the same information of the bathy_preproc file in the same directory
     
     # get CSV file name and replace .CSV by .txt
-    bathy_preproc_file_name = os.path.basename(os.path.normpath(bathy_preproc_path))
-    #txt_file_name = bathy_preproc_file_name.replace("csv", "txt")
     txt_file_name = "exiftool_tags.txt"
     csv_file_name = txt_file_name.replace("txt", "csv")
-    txt_path = bathy_preproc_path.replace(bathy_preproc_file_name, txt_file_name)
-    csv_path = bathy_preproc_path.replace(bathy_preproc_file_name, csv_file_name)
+    txt_path = Path(bathy_preproc_path.parent, f"{bathy_preproc_path.stem}_{txt_file_name}")
+    csv_path = Path(bathy_preproc_path.parent, f"{bathy_preproc_path.stem}_{csv_file_name}")
+    
     # open bathy_preproc file 
     bathy_preproc_df = pd.read_csv(bathy_preproc_path)
     # Note exiftool : GPSPitch and GPSRoll are not standard tags, and must be user-defined.
