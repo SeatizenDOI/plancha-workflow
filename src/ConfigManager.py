@@ -243,5 +243,8 @@ class ConfigManager:
     def force_rgp(self) -> bool:
         return bool(self.cfg_prog['gps']['force_use_rgp'])
     
+    def use_llh_position(self) -> bool:
+        return bool(self.cfg_prog["gps"]["use_llh_position"])
+
     def gpsbaseposition_mean_on_llh(self) -> bool:
         return bool(self.cfg_prog["gps"]["gpsbaseposition_mean_on_llh"])

@@ -29,7 +29,7 @@ class GPSManager:
         self.base_RINEX_filepath = None
         self.base_RGP_filepath = None
 
-        self.ppk_solution = None
+        self.ppk_solution = None # LLH file to store data.
 
 
     def setup(self, cm: ConfigManager, session_filepath: Path) -> None:
@@ -55,7 +55,7 @@ class GPSManager:
 
         # If we have an LLH folder, then plot a quality study on the GPS data before doing ppk.
         if self.device_LLH_filepath != None and self.device_LLH_filepath.exists():
-            self.GPS_position_accuracy(session_filepath, cm.is_rtkfix())
+            self.GPS_position_accuracy(session_filepath, self.device_LLH_filepath, cm.is_rtkfix())
         else:
             print("[WARNING] No LLH found. Cannot create preliminary plot.")
 
@@ -94,13 +94,13 @@ class GPSManager:
         return self.device_RINEX_filepath != None and (self.base_RINEX_filepath != None or self.base_RGP_filepath != None)
 
 
-    def GPS_position_accuracy(self, session_info_path: Path, flag_rtkfix: bool) -> None:
+    def GPS_position_accuracy(self, session_info_path: Path, llh_path: Path, flag_rtkfix: bool) -> None:
         """ Compute Q1, Q2 and Q5 to plot some graph. """
 
         # Inputs :
         # 1.llh_path = path of the llh file 
-        device_llh_text_path  = llh_to_txt(self.device_LLH_filepath)
-        csv_llh = pd.read_csv(device_llh_text_path)
+        llh_text_path  = llh_to_txt(llh_path)
+        csv_llh = pd.read_csv(llh_text_path)
         
         session_info = pd.read_csv(session_info_path)
         # compute quality indexes and write in the session_info df
@@ -114,7 +114,7 @@ class GPSManager:
         # save session_info df
         session_info.to_csv(session_info_path, sep = ',', index=False)
 
-        isPPK = "ppk" in device_llh_text_path.name
+        isPPK = "ppk" in llh_text_path.name
 
         # 1.PLOT GPS QUALITY
         plot_gps_quality(self.device_path, csv_llh, session_info, 'GPS_ppk_position_accuracy.png' if isPPK else 'GPS_position_accuracy.png')
@@ -198,11 +198,11 @@ class GPSManager:
     def ppk(self, cm: ConfigManager, session_name: str) -> None:
 
         ppk_config_file = cm.get_ppk_config_path()
-        dest_ppk_config_file = Path(self.device_path, f"{session_name}_{ppk_config_file.name}")
+        dest_ppk_config_file = Path(self.device_path, f"{ppk_config_file.stem}_{session_name}{ppk_config_file.suffix}")
         shutil.copy(ppk_config_file, dest_ppk_config_file)
 
         baseFile = None
-        print()
+
         if self.base_RGP_filepath != None:
             # Change ppk_config to be ready for rgp station
             replace_line(dest_ppk_config_file, 3, 'pos1-frequency     =2   # (1:l1,2:l1+l2,3:l1+l2+l5,4:l1+l5)\n')
@@ -212,14 +212,15 @@ class GPSManager:
             replace_line(dest_ppk_config_file, 105, 'ant2-pos1          =0  # (deg|m)\n')
             replace_line(dest_ppk_config_file, 106, 'ant2-pos2          =0  # (deg|m)\n')
             replace_line(dest_ppk_config_file, 107, 'ant2-pos3          =0  # (m|m)\n')
-            baseFile = self.base_RGP_filepath
+            baseFile = str(self.base_RGP_filepath)
         
         elif self.base_RINEX_filepath != None:
-            for file in self.device_RINEX_filepath.iterdir():
+            for file in self.base_RINEX_filepath.iterdir():
                 if "o" in file.suffix.lower() or "obs" in file.suffix.lower():
                     baseFile = str(file)
 
             if cm.gpsbaseposition_mean_on_llh() and self.base_LLH_filepath.exists():
+                print("Perform GPSBase mean on LLH")
                 # read the Base LLH file in order to compute mean of x, y, z
                 baseLLH_csv = pd.read_csv(llh_to_txt(self.base_LLH_filepath))
                 status_fix = 1 if len(baseLLH_csv[baseLLH_csv['fix']==1]) > 0 else (2 if len(baseLLH_csv[baseLLH_csv['fix']==2]) > 0 else 5)
@@ -251,7 +252,6 @@ class GPSManager:
             raise NameError("Cannot perform ppk. Rinex files for device where not found.")
         
         ## Perform PPK with rtklib.
-        
         print("We are currently doing PPK on session : ", session_name)
         pos_path = Path(self.device_path, f"ppk_solution_{session_name}.pos")
         # Create command to run solution
@@ -269,3 +269,7 @@ class GPSManager:
                 raise CalledProcessError(p.returncode, p.args)
 
         self.ppk_solution = pos_to_llh(pos_path)
+    
+
+    def get_navigation_file_in_text(self) -> Path:
+        return llh_to_txt(self.ppk_solution)

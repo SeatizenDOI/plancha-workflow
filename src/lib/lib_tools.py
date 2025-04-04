@@ -31,7 +31,7 @@ def replace_comma_by_dot(file_path):
         f.seek(0)
         f.writelines(lines)
 
-def replace_line(file_name, line_num, text):
+def replace_line(file_name: Path, line_num: int, text: str) -> None:
     with open(file_name, 'r+') as f:
         lines = f.readlines()
         lines[line_num] = text
@@ -70,11 +70,11 @@ def pos_to_llh(pos_path: Path) -> Path:
     # The function saves a LLH file with the same information of the pos file in the same directory
     
     # get POS file name and replace .pos by .LLH
-    llh_path = Path(pos_path.parent, f"{pos_path.stem}.pos")
+    llh_path = Path(pos_path.parent, f"{pos_path.stem}.LLH")
 
     # open POS file 
     with open(pos_path, 'r') as f:
-        # open txt file
+        # open llh file
         with open(llh_path, 'w') as newf:
             new_lines = [line for line in f if line.startswith("%") == False]
             newf.writelines(new_lines)

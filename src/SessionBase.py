@@ -108,6 +108,13 @@ class SessionBase:
 
         self.gps_manager.setup(cm, self.session_info_path)
 
+
+        # Check if we use llh_position:
+        if not cm.use_llh_position():
+            self.gps_manager.GPS_position_accuracy(self.session_info_path, self.gps_manager.device_LLH_filepath, cm.is_rtkfix())
+            self.gps_manager.ppk_solution = self.gps_manager.device_LLH_filepath
+            return
+
         # Based on base GPS data, we try to figure out if we can do PPK.
         # If user want to perform PPK with RGP station or if rinex files are not here we need to download rgp data.
         if cm.force_rgp() or self.gps_manager.base_RINEX_filepath == None:
@@ -124,11 +131,8 @@ class SessionBase:
 
         # Get the final GPS file with or without PPK solution
         if self.gps_manager.ppk_solution != None:
-            ppk_solution_text = llh_to_txt(self.gps_manager.ppk_solution)
-            print("The NEW navigation file will be : ", ppk_solution_text)
-            self.gps_manager.GPS_position_accuracy(self.session_info_path, cm.is_rtkfix())
+            self.gps_manager.GPS_position_accuracy(self.session_info_path, self.gps_manager.ppk_solution, cm.is_rtkfix())
         else:
             print("We do not have a navigation file.")
 
-        #! FIXME Comment tools (llh_to_txt), change GPS_position_accuracy (feed params)
         
