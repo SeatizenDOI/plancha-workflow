@@ -239,7 +239,7 @@ class SessionBase:
         # save session_info df
         session_info.to_csv(self.session_info_path, sep = ',', index=False)
     
-        print("\n-- 4 of 6 : ADD DATE AND TIME TO CSV METADATA\n")
+        print("\n-- ADD DATE AND TIME TO CSV METADATA\n")
 
         # convert "time_first_frame" to "time_first_frame_np" in order to create np vector of DateTime
         time_first_frame_np = cm.get_time_first_frame().replace(" ", "T")
@@ -265,7 +265,7 @@ class SessionBase:
 
         # 1.GPS
         if self.gps_manager.ppk_solution != None :
-            print("\n-- 5 of 6 : ADD POSITION, ROLL, PITCH, YAW, DEPTH TO CSV METADATA\n")
+            print("\n-- ADD POSITION, ROLL, PITCH, YAW, DEPTH TO CSV METADATA\n")
             # convert "SubSecDateTimeOriginal_np" to unix time in order to do interpolation
             # please see : https://www.unixtimestamp.com/
             csv_exiftool_frames['datetime_unix'] = csv_exiftool_frames['SubSecDateTimeOriginal_np'].astype('int64')
@@ -353,7 +353,7 @@ class SessionBase:
         # Remove frames outside mission 
         if cm.should_I_remove_frames_outside_mission():
             csv_exiftool_frames = self.image_manager.remove_outside_frames(csv_exiftool_frames, session_info)
-    
+
         # Remove frames if filt_exclude_specific_datetimeUnix
         if cm.should_I_remove_frames_outside_mission() and len(self.bathy_manager.filt_exclude_specific_datetimeUnix) != 0:
             csv_exiftool_frames = self.image_manager.remove_frames_from_specific_intervals(csv_exiftool_frames, self.bathy_manager.filt_exclude_specific_datetimeUnix)

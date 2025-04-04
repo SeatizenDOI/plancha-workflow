@@ -3,8 +3,8 @@ import pytz
 import pycountry
 import subprocess
 import pandas as pd
-from pathlib import Path
 import datetime as dt
+from pathlib import Path
 
 def print_plancha_header():
     print("""
