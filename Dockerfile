@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     transforms3d==0.4.2 \
     wget==3.2 \
     natsort==8.4.0 \
-    pandas==2.2.3 \
+    pandas==2.2.3 && \
     useradd -ms /bin/bash seatizen
 
 # Add local directory and change permission.
