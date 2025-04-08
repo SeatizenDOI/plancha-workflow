@@ -32,7 +32,7 @@ def main(opt):
         if file.suffix.upper() != ".BIN": continue
 
         # Parse bin.
-        tmp_cmd = "python ../lib/mavlogdump.py --planner --format csv --types PARM "+str(file)+" > "+filebuf
+        tmp_cmd = "python ../src/lib/mavlogdump.py --planner --format csv --types PARM "+str(file)+" > "+filebuf
         subprocess.call(tmp_cmd, shell=True)
 
         # Read csv and remove file buffer.

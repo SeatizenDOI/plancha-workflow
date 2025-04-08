@@ -2,7 +2,7 @@
    "_NB": "If option is specified in command line, session_name and time_first_frame_UTC will come from this file. We can processed multiple session",
    "session_info": {
       "session_name": "",
-      "root": "/media/bioeos/F/202407_plancha_session/",
+      "root": "/home/bioeos/Documents/Bioeos/plancha_session",
       "_NB": "flag that deletes all the processed files for the current session (frames, gps processed files, bathy files etc)",
       "delete_processed_session": true
    },
@@ -24,7 +24,7 @@
       "ppk_config_path": "ppk_config/",
       "ppk_config_name": "ppk_config_file",
       "_NB": "If this flag is true, use RGP base instead of emlid reach",
-      "rgp_station": "lepo",
+      "rgp_station": "sntl",
       "force_use_rgp": false,
       "use_llh_position": true,
       "gpsbaseposition_mean_on_llh": true,

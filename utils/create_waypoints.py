@@ -27,7 +27,7 @@ def update_session(session):
     for file in sensor_folder.iterdir():
         if file.suffix.upper() != ".BIN": continue
 
-        tmp_cmd = "python ../lib/mavlogdump.py --planner --format csv --type CMD "+str(file)+" > "+filebuf
+        tmp_cmd = "python ../src/lib/mavlogdump.py --planner --format csv --type CMD "+str(file)+" > "+filebuf
         subprocess.call(tmp_cmd, shell=True)
         df_cmd = pd.read_csv(filebuf, sep=";")
 

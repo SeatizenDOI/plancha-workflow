@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Aug  9 12:27:48 2022
-
-@author: mjulien
-"""
 import numpy as np
 import open3d as o3d
 

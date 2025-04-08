@@ -16,7 +16,7 @@ def main():
 
         filebuf = Path('./tmp.csv')
          # Parse bin.
-        tmp_cmd = "python ../lib/mavlogdump.py --planner --format csv --type GPS "+str(file)+" > "+str(filebuf)
+        tmp_cmd = "python ../src/lib/mavlogdump.py --planner --format csv --type GPS "+str(file)+" > "+str(filebuf)
         subprocess.call(tmp_cmd, shell=True)
 
         # Read csv and remove file buffer.
