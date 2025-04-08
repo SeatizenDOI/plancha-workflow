@@ -32,11 +32,7 @@ def main(opt: Namespace) -> None:
 
     config_manager = ConfigManager(opt)
 
-    for args in config_manager.iterate_over_session():
-
-        session_name, time_first_frame, number_first_frame, \
-        filt_exclude_specific_timeUS, depth_range_max, depth_range_min, \
-        filt_exclude_specific_datetimeUTC, rgp_station = args
+    for session_name, filt_exclude_specific_datetimeUTC in config_manager.iterate_over_session():
 
         session_path = Path(config_manager.get_root_path(), session_name)
 
@@ -82,8 +78,6 @@ def main(opt: Namespace) -> None:
             config_manager.save_cfg_prog(session_base.prog_config_path)
 
 
-
-#! FIXME result are not the same, need to perform more tests
 if __name__ == "__main__":
     opt = parse_option()
     main(opt)

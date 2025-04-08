@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.9-slim-bullseye
+FROM python:3.12-slim-bullseye
 
 # Install lib, create user.
 RUN apt-get update && apt-get install -y --no-install-recommends \

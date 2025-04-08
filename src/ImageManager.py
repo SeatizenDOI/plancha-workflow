@@ -14,12 +14,12 @@ IMAGE_EXTENSION = [".jpg", ".jpeg"]
 
 class ImageManager:
 
-    def __init__(self, session_name: str, dcim_path: Path, frame_path: Path):
+    def __init__(self, session_name: str, dcim_path: Path, frame_path: Path) -> None:
         
         self.session_name = session_name
         self.dcim_path = dcim_path
         self.frame_path = frame_path
-        self.relative_file_path = Path(session_name, "PROCESSED_DATA", "FRAMES") # session_name/PROCESSED_DATA/FRAMES
+        self.relative_file_path = Path(session_name, "PROCESSED_DATA", "FRAMES")
 
         self.dcim_type = DCIMType.VIDEO # Default value.
         
@@ -33,7 +33,6 @@ class ImageManager:
             self.relative_file_path = Path(cm.get_session_name(), "DCIM") # session_name/DCIM
             fps = self.get_frame_per_second_for_image()
             cm.set_frames_per_second(fps)
-
 
 
     def compute_dcim_type(self) -> None:
@@ -81,7 +80,8 @@ class ImageManager:
             fps = a if a > b else a / b # 4_1SEC = 4fps and 1_2SEC = O.5fps
             
         return str(fps) 
-    
+
+
     def dcim_folder_is_video_folder(self) -> bool:
         return self.dcim_type == DCIMType.VIDEO
     
@@ -139,7 +139,7 @@ class ImageManager:
     def remove_outside_frames(self, csv_exiftool_frames: pd.DataFrame, session_info: pd.DataFrame) -> pd.DataFrame:
         print("\n-- Remove frames before first waypoint and after last waypoint\n")
 
-        if "Mission_START" not in list(session_info) or "Mission_END" not in list(session_info) or "datetime_unix" not in csv_exiftool_frames:
+        if "Mission_START" not in list(session_info) or "Mission_END" not in list(session_info) or "SubSecDateTimeOriginal_np" not in csv_exiftool_frames:
             print("[WARNING] Mission interval wasn't found, no filtering.")
             return csv_exiftool_frames
 

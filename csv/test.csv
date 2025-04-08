@@ -1,2 +1,0 @@
-session_name,time_first_frame,number_first_frame,filt_exclude_specific_timeUS,depth_range_max,depth_range_min,filt_exclude_specific_datetimeUTC,rgp_station
-20240715_REU-ST-LEU_ASV-1_02,2024:07:15 03:21:47.68,40,,,,"[['2024:07:15 03:32:00.0','2024:07:15 03:33:09.0']]",

@@ -19,7 +19,7 @@ from .lib.lib_tools import convert_datetime_to_datetime_unix, convert_datetime_u
 
 class SessionBase:
 
-    def __init__(self, session_path: Path):
+    def __init__(self, session_path: Path) -> None:
         
         self.session = Path(session_path)
 
@@ -41,6 +41,7 @@ class SessionBase:
         self.image_manager = ImageManager(self.session.name, self.dcim_path, self.pd_frames_path)
         self.gps_manager = GPSManager(self.gps_device_path, self.gps_base_path)
         self.bathy_manager = BathyManager(self.sensors_path, self.pd_bathy_path)
+
 
     def prepare_folder(self, folder_to_clean: list[FolderType]) -> None:
 
@@ -100,6 +101,7 @@ class SessionBase:
 
         session_info.to_csv(self.session_info_path, index=False)
      
+
     def split_videos(self, cm: ConfigManager) -> None:
         
         if not cm.can_split() or not self.image_manager.dcim_folder_is_video_folder() : return 
@@ -147,6 +149,7 @@ class SessionBase:
             self.gps_manager.GPS_position_accuracy(self.session_info_path, self.gps_manager.ppk_solution, cm.is_rtkfix())
         else:
             raise NameError("No Navigation where found.")
+    
     
     def compute_bathy(self, cm: ConfigManager) -> None:
 

@@ -5,12 +5,11 @@ from pathlib import Path
 from datetime import datetime
 from argparse import Namespace
 
-from .lib.lib_tools import convert_datetime_to_datetime_unix, convert_datetime_unix_to_datetime
 from .enum.FolderType import FolderType, get_foldertype_from_value, get_full_folder
 
 class ConfigManager:
 
-    def __init__(self, opt: Namespace):
+    def __init__(self, opt: Namespace) -> None:
 
         self.opt = opt
         self.cfg_prog = None
@@ -61,6 +60,7 @@ class ConfigManager:
 
         # Frame per second.
         self.default_args["frames_per_second"] = self.cfg_prog['dcim']['frames_per_second']
+
 
     def build_sessions_to_process(self) -> None:
 
@@ -130,31 +130,18 @@ class ConfigManager:
         else:
             self.cfg_prog['bathy']['dpth_range']['min'] = self.default_args["min_depth"]
 
-        ### Convert filt_exclude_specific_datetimeUnix to datetime and store it in cfg_prog. 
-        ### Convert filt_exclude_specific_datetimeUTC to unix and add it to filt_exclude_specific_datetimeUnix
-        # filt_exclude_specific_datetimeUTC = [] if filt_exclude_specific_datetimeUTC == "" else json.loads(filt_exclude_specific_datetimeUTC.replace("'", '"'))
-        # datetimeUTC_to_datetimeUnix = [
-        #     [convert_datetime_to_datetime_unix(a), convert_datetime_to_datetime_unix(b)] 
-        #     for a, b in filt_exclude_specific_datetimeUTC
-        # ]
-        # filt_exclude_specific_datetimeUnix += datetimeUTC_to_datetimeUnix
-        # filt_exclude_specific_datetimeUTC = [
-        #     [convert_datetime_unix_to_datetime(a), convert_datetime_unix_to_datetime(b)] 
-        #     for a, b in filt_exclude_specific_datetimeUnix
-        # ]
         self.cfg_prog['dcim']['filt_exclude_specific_datetimeUTC'] = filt_exclude_specific_datetimeUTC
 
         self.delta_time = None
 
-         
 
     def iterate_over_session(self):
         for args in self.list_sessions:
             
             self.update_cfg_prog_for_session(args)
+            session_name, filt_exclude_specific_datetimeUTC = args[0], args[6]
 
-
-            yield args 
+            yield (session_name, filt_exclude_specific_datetimeUTC) 
 
 
     def save_cfg_prog(self, prog_congig_path: Path) -> None:

@@ -90,6 +90,7 @@ class GPSManager:
         
         return llh_path, rinex_path
 
+
     def can_perform_ppk(self) -> bool:
         return self.device_RINEX_filepath != None and (self.base_RINEX_filepath != None or self.base_RGP_filepath != None)
 
@@ -137,7 +138,7 @@ class GPSManager:
             plot_standard_deviation(self.device_path, csv_llh, 'sde_fix=1_ppk.png', StandardDeviationType.EAST)
     
 
-    def download_rgp(self, cm: ConfigManager, session_name: str, frames_path: Path, sensors_path: Path) :
+    def download_rgp(self, cm: ConfigManager, session_name: str, frames_path: Path, sensors_path: Path) -> None:
 
         alphabet = "abcdefghijklmnopqrstuvwx"
 
@@ -195,6 +196,7 @@ class GPSManager:
                             a = file_rinex.readline()
                         merged_rinex.write(file_rinex.read())
         
+
     def ppk(self, cm: ConfigManager, session_name: str) -> None:
 
         ppk_config_file = cm.get_ppk_config_path()
@@ -273,6 +275,7 @@ class GPSManager:
 
     def get_navigation_file_in_text(self) -> Path:
         return llh_to_txt(self.ppk_solution)
+    
     
     def compute_gps_for_only_device(self) -> None:
 
