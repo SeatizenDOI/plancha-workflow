@@ -2,7 +2,7 @@
    "_NB": "If option is specified in command line, session_name and time_first_frame_UTC will come from this file. We can processed multiple session",
    "session_info": {
       "session_name": "",
-      "root": "/home/bioeos/Documents/Bioeos/plancha_session",
+      "root": "/media/bioeos/F/202504_plancha_session",
       "_NB": "flag that deletes all the processed files for the current session (frames, gps processed files, bathy files etc)",
       "delete_processed_session": true
    },

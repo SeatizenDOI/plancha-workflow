@@ -36,7 +36,9 @@ def main(opt: Namespace) -> None:
 
         session_path = Path(config_manager.get_root_path(), session_name)
 
-        if not session_path.exists(): continue
+        if not session_path.exists(): 
+            print(f"[WARNING] Path {session_path} not found")
+            continue
 
         session_base = SessionBase(session_path)
 

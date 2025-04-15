@@ -180,7 +180,7 @@ def generate_theoric_waypoints_file(sensors_path: Path, df_cmd: pd.DataFrame) ->
         file.write("QGC WPL 110\n" + content)
 
 
-def write_real_mission_interval(session_inof_path: Path, df_gps: pd.DataFrame, df_msg: pd.DataFrame) -> None:
+def write_real_mission_interval(session_info_path: Path, df_gps: pd.DataFrame, df_msg: pd.DataFrame) -> None:
     wp_datetime = []
     for _, row in df_msg.iterrows():
         if "Reached waypoint" not in row.Message: continue
@@ -195,10 +195,10 @@ def write_real_mission_interval(session_inof_path: Path, df_gps: pd.DataFrame, d
     start_wp, end_wp = wp_datetime[0], wp_datetime[-1]
 
     # Write information in session_info
-    session_info = pd.read_csv(session_inof_path)
+    session_info = pd.read_csv(session_info_path)
     session_info.insert(len(session_info.columns), "Mission_START", [start_wp])
     session_info.insert(len(session_info.columns), "Mission_END", [end_wp])
-    session_info.to_csv(session_inof_path, sep = ',', index=False)
+    session_info.to_csv(session_info_path, sep = ',', index=False)
 
 
 def convert_datetime_to_datetime_unix(dt_value_in_str: str) -> int:

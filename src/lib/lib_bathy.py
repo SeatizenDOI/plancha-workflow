@@ -249,14 +249,15 @@ def build_dataframe_gps(dfdict_dump_mavlog: dict, cm: ConfigManager, navigation_
             print(f'func: filter data - Removing timeUS interval {t_start} - {t_stop}')
             dfa = df[df.TimeUS < t_start]
             dfb = df[df.TimeUS > t_stop]
-            df = pd.concat([dfa, dfb])
 
             v1 = int((dfa[timestamp_key].iloc[-1] if len(dfa[timestamp_key]) else df[timestamp_key].iloc[0]) * factor_to_nanosaconds)
             v2 = int((dfb[timestamp_key].iloc[0] if len(dfb[timestamp_key]) else df[timestamp_key].iloc[-1]) * factor_to_nanosaconds)
+
+            df = pd.concat([dfa, dfb])
+
             filt_exclude_specific_datetimeUnix.append([v1, v2])
 
     print('func: Convert lat and long to UTM coordinates (pyproj)')
-    
     projzone = cm.get_utm_zone()
     projellps = cm.get_utm_ellips() 
     projsouth = cm.get_utm_south() 

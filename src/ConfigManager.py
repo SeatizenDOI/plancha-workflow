@@ -118,7 +118,6 @@ class ConfigManager:
             self.cfg_prog['gps']['filt_exclude_specific_timeUS'] = json.loads(filt_exclude_specific_timeUS)
         else:
             self.cfg_prog['gps']['filt_exclude_specific_timeUS'] = []
-        
         ### Max/Min depth
         if depth_range_max != "":
             self.cfg_prog['bathy']['dpth_range']['max'] = float(depth_range_max)
@@ -130,8 +129,11 @@ class ConfigManager:
         else:
             self.cfg_prog['bathy']['dpth_range']['min'] = self.default_args["min_depth"]
 
-        self.cfg_prog['dcim']['filt_exclude_specific_datetimeUTC'] = filt_exclude_specific_datetimeUTC
-
+        if filt_exclude_specific_datetimeUTC != "":
+            self.cfg_prog['dcim']['filt_exclude_specific_datetimeUTC'] = filt_exclude_specific_datetimeUTC
+        else:
+            self.cfg_prog['dcim']['filt_exclude_specific_datetimeUTC'] = []
+            
         self.delta_time = None
 
 
@@ -244,11 +246,11 @@ class ConfigManager:
     def get_bathy_max_angle(self) -> int:
         return int(self.cfg_prog['bathy']['max_angle'])
     
-    def get_bathy_depth_min(self) -> int:
-        return int(self.cfg_prog['bathy']['dpth_range']['min'])
+    def get_bathy_depth_min(self) -> float:
+        return float(self.cfg_prog['bathy']['dpth_range']['min'])
 
-    def get_bathy_depth_max(self) -> int:
-        return int(self.cfg_prog['bathy']['dpth_range']['max'])
+    def get_bathy_depth_max(self) -> float:
+        return float(self.cfg_prog['bathy']['dpth_range']['max'])
     
     def get_bathy_dpth_win_s(self) -> float:
         return float(self.cfg_prog['bathy']['dpth_win_s'])
