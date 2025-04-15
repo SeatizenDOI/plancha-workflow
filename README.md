@@ -1,4 +1,5 @@
 <p align="center">
+  <a href="https://doi.org/10.5281/zenodo.15222077"><img src="https://zenodo.org/badge/790054566.svg" alt="DOI"></a>
   <a href="https://github.com/SeatizenDOI/plancha-workflow/graphs/contributors"><img src="https://img.shields.io/github/contributors/SeatizenDOI/plancha-workflow" alt="GitHub contributors"></a>
   <a href="https://github.com/SeatizenDOI/plancha-workflow/network/members"><img src="https://img.shields.io/github/forks/SeatizenDOI/plancha-workflow" alt="GitHub forks"></a>
   <a href="https://github.com/SeatizenDOI/plancha-workflow/issues"><img src="https://img.shields.io/github/issues/SeatizenDOI/plancha-workflow" alt="GitHub issues"></a>
