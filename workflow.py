@@ -54,9 +54,8 @@ def main(opt: Namespace) -> None:
             ### Image part.
             session_base.split_videos(config_manager)
 
-            if config_manager.is_only_split(): continue
-
-            session_base.remove_first_frames(config_manager)
+            if not config_manager.is_only_split():
+                session_base.remove_first_frames(config_manager)
 
             ### GPS part.
             session_base.compute_gps(config_manager)
@@ -67,7 +66,8 @@ def main(opt: Namespace) -> None:
             session_base.update_filt_exclude_interval(config_manager, filt_exclude_specific_datetimeUTC)
 
             ### Tags part
-            session_base.tags_frames(config_manager)
+            if not config_manager.is_only_split():
+                session_base.tags_frames(config_manager)
             
         except Exception:
             # Print error
