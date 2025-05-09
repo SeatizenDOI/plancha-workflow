@@ -16,11 +16,10 @@ def print_plancha_header():
 ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝
     """)
 
-def convert_GMS_GWk_to_UTC_time(gpsweek: int, gpsseconds: float, leapseconds: int = 0):
-    datetimeformat = "%Y-%m-%d %H:%M:%S.%f"
-    epoch = dt.datetime.strptime("1980-01-06 00:00:00.000",datetimeformat)
-    elapsed = dt.timedelta(days=int((gpsweek*7)),seconds=int(gpsseconds+leapseconds))
-    return dt.datetime.strftime(epoch + elapsed,datetimeformat)
+def convert_GMS_GWk_to_UTC_time(gpsweek: int, gpsmilliseconds: float, leapseconds: int = 0) -> dt.datetime:
+    epoch = dt.datetime(1980, 1, 6)
+    elapsed = dt.timedelta(weeks=int(gpsweek), seconds=float(gpsmilliseconds/1000.0) + leapseconds)
+    return epoch + elapsed
 
 def replace_comma_by_dot(file_path):
     with open(file_path, 'r+') as f:

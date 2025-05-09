@@ -164,13 +164,12 @@ def build_dataframe_gps(dfdict_dump_mavlog: dict, cm: ConfigManager, navigation_
     texec = datetime.now()
     
     df = dfdict_dump_mavlog[cm.get_parse_key_gps()].copy()
-
     print('func: initial dataframe has',len(df),'points')
 
     # use LLH position instead of the LOG/BIN one
     if cm.use_llh_position():
         # convert GMS time to UTC time in order to have a friendly date and time
-        gpstime = [convert_GMS_GWk_to_UTC_time(df.GWk.values[i],df.GMS.values[i]/1000.0) for i in range(len(df))]
+        gpstime = [convert_GMS_GWk_to_UTC_time(df.GWk.values[i],df.GMS.values[i]) for i in range(len(df))]
         df['GPS_time'] = gpstime
         # convert GPS_time to new unix column in order to do interpolation on LLH date and time
         df['GPS_time'] = pd.to_datetime(df['GPS_time'])
@@ -270,9 +269,10 @@ def build_dataframe_gps(dfdict_dump_mavlog: dict, cm: ConfigManager, navigation_
     df['X_utm'] = utm_x
     df['Y_utm'] = utm_y
     
-    gpstime = [convert_GMS_GWk_to_UTC_time(df.GWk.values[i],df.GMS.values[i]/1000.0) for i in range(len(df))]
+
+    gpstime = [convert_GMS_GWk_to_UTC_time(df.GWk.values[i],df.GMS.values[i]) for i in range(len(df))]
     df['GPS_time'] = gpstime
-    
+
     # time func execution
     print('func: exec time --> ', datetime.now() - texec)
     
@@ -369,8 +369,7 @@ def calc_raw_depth_at_gps_coord(df_bathy: pd.DataFrame, df_dpth: pd.DataFrame, c
     
     print('func: bathy > Median filter param : time win (s) , dpth range (m), valid prop')
     print(dpth_med_time_win_us*1e-6, dpth_med_lim_m, dpth_med_valid_prop )
-    
-   
+
     nbpt = len(df_bathy.TimeUS)
     dpthestim = np.ones((nbpt,1))
     for i in range(0,nbpt):
@@ -379,7 +378,7 @@ def calc_raw_depth_at_gps_coord(df_bathy: pd.DataFrame, df_dpth: pd.DataFrame, c
                                dpth_med_time_win_us,
                                dpth_med_valid_prop,
                                dpth_med_lim_m)
-    
+        
     df_bathy['Depth']  = -dpthestim[:,0]
     
     print('func: bathy > Remove points with depth = -1 (bad values)')

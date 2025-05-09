@@ -77,11 +77,12 @@ class GPSManager:
         for file in path_to_walk.iterdir():
             if file.suffix == ".zip": continue
             
-            if "LLH" in file.name and file.is_dir():
+            if "LLH" in file.name and file.is_dir(): # Old behavior before emlid REACH 32.2 firmware
                 llh_path = Path(file, f"{file.name.replace("_LLH", "")}.LLH")
-            elif "RINEX" in file.name and file.is_dir():
+            elif "RINEX" in file.name and file.is_dir(): # Old behavior before emlid REACH 32.2 firmware
                 rinex_path = file
-            elif file.is_dir(): # Sometimes, like RS3, the compression format is different.
+            # New behaviour after emlid reach 32.2
+            elif file.is_dir(): # Sometimes, like RS3, the compression format is different. (EMLID Reach update all the next file will be compress in this format.)
                 for subfile in file.iterdir():
                     if subfile.suffix == ".LLH":
                         llh_path = subfile
@@ -119,6 +120,7 @@ class GPSManager:
 
         # 1.PLOT GPS QUALITY
         plot_gps_quality(self.device_path, csv_llh, session_info, 'GPS_ppk_position_accuracy.png' if isPPK else 'GPS_position_accuracy.png')
+        plot_gps_quality(self.device_path, csv_llh, session_info, 'GPS_ppk_position_accuracy_q1_only.png' if isPPK else 'GPS_position_accuracy_q1_only.png', True)
 
         # 2. plot standard deviation north distribution before the filter
         plot_standard_deviation(self.device_path, csv_llh, f"sdn{'_ppk' if isPPK else ''}.png", StandardDeviationType.NORTH)

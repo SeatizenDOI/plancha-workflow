@@ -1,5 +1,0 @@
-session_name,time_first_frame,number_first_frame,filt_exclude_specific_timeUS,depth_range_max,depth_range_min,filt_exclude_specific_datetimeUTC,rgp_station
-20250414_REU-TROU-DEAU_ASV-1_01,2025:04:14 02:27:37.56,40,,,,,
-20250414_REU-TROU-DEAU_ASV-1_02,2025:04:14 03:22:55.83,180,"[[379440000,383243326]]",,,,
-20250414_REU-TROU-DEAU_ASV-1_03,2025:04:14 04:29:56.00,10,"[[201262382,219662452]]",,,,
-20250414_REU-TROU-DEAU_ASV-2_01,2025:04:14 04:23:18.81,20,,,,,

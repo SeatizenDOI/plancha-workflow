@@ -1,8 +1,8 @@
 {
    "_NB": "If option is specified in command line, session_name and time_first_frame_UTC will come from this file. We can processed multiple session",
    "session_info": {
-      "session_name": "",
-      "root": "/media/bioeos/F/202504_plancha_session",
+      "session_name": "20250425_REU-ST-LEU_ASV-1_03",
+      "root": "/home/bioeos/Documents/Bioeos/plancha_session/",
       "_NB": "flag that deletes all the processed files for the current session (frames, gps processed files, bathy files etc)",
       "delete_processed_session": true
    },

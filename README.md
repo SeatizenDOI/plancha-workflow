@@ -196,6 +196,23 @@ This file is used to process several sessions one after the other.
 | filt_exclude_specific_datetimeUTC | Allow to filter frame by utc interval. |
 | rgp_station | Name of rgp station. If filled, force to use rgp station instead base. |
 
+
+## Discussion Mohan/Victor/Sylvain - 2025/05/09
+
+Problem: We observe discrepancies of several centimeters between two board passes over the same area.
+
+- In the PPK solution, horizontal uncertainties (sde, sdn) are below 1 cm, and vertical uncertainty is between 1 to 2 cm (for Q1 points).
+- Between the specifications of the ECT400 echosounder and the fact that a fixed and uncalibrated speed-of-sound coefficient of 1.04 is used, we end up with a measurement uncertainty for this sensor ranging from ±2 cm to ±5 cm.
+- When comparing the sessions 20231215_REU-ST-LEU_ASV-1_01, 20240426_REU-ST-LEU_ASV-1_01, and 20250425_REU-ST-LEU_ASV-1_03, we generally observe a difference between the bathymetries of about 4 cm on average with a standard deviation of 10 cm. This confirms the two points above.
+
+Note 1: There is no point in looking for topographic changes smaller than about 10 cm.
+
+Note 2: The grid pattern improves the overall quality of the bathymetry. Without it, we are limited by the spacing between transects in terms of the size of the features we can detect.
+
+Note 3: A difference between two rasters may be due to a lack of points in the preprocessed bathy file of one of the two sessions, rather than a real difference.
+
+
+
 ## Contributing
 
 Contributions are welcome! To contribute, please follow these steps:

@@ -7,8 +7,11 @@ from matplotlib.ticker import FormatStrFormatter
 
 from ..enum.StandardDeviationType import StandardDeviationType, get_title_based_on_sd_type
 
-def plot_gps_quality(gps_device_path: Path, csv_llh: pd.DataFrame, session_info: pd.DataFrame, file_name: str) -> None:
+def plot_gps_quality(gps_device_path: Path, csv_llh: pd.DataFrame, session_info: pd.DataFrame, file_name: str, without_q2_q5: bool = False) -> None:
     figname = Path(gps_device_path, file_name)
+    
+    if without_q2_q5:
+        csv_llh = csv_llh[csv_llh["fix"] == 1]
 
     for file in gps_device_path.iterdir() :
         if file.name == figname:

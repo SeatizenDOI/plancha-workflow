@@ -146,11 +146,13 @@ class ConfigManager:
             yield (session_name, filt_exclude_specific_datetimeUTC) 
 
 
-    def save_cfg_prog(self, prog_congig_path: Path) -> None:
+    def save_cfg_prog(self, prog_config_path: Path) -> None:
         """ Save cfg prog file to provide path"""
 
-        with open(prog_congig_path, 'w') as fp:
-            json.dump(self.cfg_prog, fp,indent=3)
+        copy_prog = self.cfg_prog.copy()
+        copy_prog["creation_date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(prog_config_path, 'w') as fp:
+            json.dump(copy_prog, fp,indent=3)
     
 
     # -- Getter part
