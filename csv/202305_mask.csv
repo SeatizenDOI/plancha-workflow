@@ -1,3 +1,6 @@
 session_name,time_first_frame,number_first_frame,filt_exclude_specific_timeUS,depth_range_max,depth_range_min,filt_exclude_specific_datetimeUTC,rgp_station
+20230430_MDG-NOSY-VE_SCUBA-1_00,2023:04:30 05:53:00.000,27,,,,,
 20230430_MDG-NOSY-VE_SCUBA-1_01,1970:01:01 00:00:00.000,0,,,,,
+20230430_MDG-NOSY-VE_SCUBA-1_02,1970:01:01 00:00:00.000,0,,,,,
 20230430_MDG-NOSY-VE_SCUBA-2_00,1970:01:01 00:00:00.000,0,,,,,
+20230507_MDG-IFATY_SCUBA-1_00,1970:01:01 00:00:00.000,0,,,,,

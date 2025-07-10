@@ -80,7 +80,7 @@ def pos_to_llh(pos_path: Path) -> Path:
 
     return llh_path
 
-def gpx_to_llh(gpx_path):
+def gpx_to_llh(gpx_path: Path) -> Path:
     # Inputs :
     # 1.filename = path to gpx_file 
     
@@ -118,7 +118,10 @@ def gpx_to_llh(gpx_path):
 
     # Save llh.LLH
     FILENAME_LLH = FILENAME_TXT.replace(".txt", ".LLH")
-    df.to_csv(Path(folder, FILENAME_LLH), index=False, sep=" ", header=False)
+    llh_path = Path(folder, FILENAME_LLH)
+    df.to_csv(llh_path, index=False, sep=" ", header=False)
+    
+    return llh_path
 
 
 def get_hours_from_bin_sensors(session_name: str, sensors_path: Path) -> tuple[int, int]:
@@ -185,7 +188,7 @@ def write_real_mission_interval(session_info_path: Path, df_gps: pd.DataFrame, d
         if "Reached waypoint" not in row.Message: continue
 
         a = df_gps[df_gps["timestamp"] <= row["timestamp"]].iloc[-1] # Get the nearest gps position
-        wp_datetime.append(convert_GMS_GWk_to_UTC_time(a.GWk,a.GMS/1000.0))
+        wp_datetime.append(convert_GMS_GWk_to_UTC_time(a.GWk,a.GMS))
 
     if len(wp_datetime) == 0:
         print("func: Mission interval not found")

@@ -12,6 +12,7 @@ from .BathyManager import BathyManager
 from .ConfigManager import ConfigManager
 from .ImageManager import ImageManager, VIDEO_EXTENSION
 
+from .enum.DCIMType import DCIMType
 from .enum.FolderType import FolderType
 
 from .lib.lib_bathy import bathy_preproc_to_txt
@@ -122,34 +123,40 @@ class SessionBase:
 
         self.gps_manager.setup(cm, self.session_info_path)
 
+        try:
 
-        # Check if we use llh_position:
-        if not cm.use_llh_position():
-            self.gps_manager.compute_gps_for_only_device()
+            # Check if we use llh_position:
+            if not cm.use_llh_position():
+                self.gps_manager.compute_gps_for_only_device()
 
-        # Based on base GPS data, we try to figure out if we can do PPK.
-        # If user want to perform PPK with RGP station or if rinex files are not here we need to download rgp data.
-        elif cm.force_rgp() or self.gps_manager.base_RINEX_filepath == None:
-            print(f"Downloading RGP data from {cm.get_rgp_station()} station :")
-            self.gps_manager.download_rgp(cm, self.session.name, self.pd_frames_path, self.sensors_path)
-            cm.set_force_rgp(True)
+            # Based on base GPS data, we try to figure out if we can do PPK.
+            # If user want to perform PPK with RGP station or if rinex files are not here we need to download rgp data.
+            elif cm.force_rgp() or self.gps_manager.base_RINEX_filepath == None:
+                print(f"Downloading RGP data from {cm.get_rgp_station()} station :")
+                self.gps_manager.download_rgp(cm, self.session.name, self.pd_frames_path, self.sensors_path)
+                cm.set_force_rgp(True)
 
-        # Check if we can perform ppk.
-        if self.gps_manager.can_perform_ppk():
-            print("We can do PPK on our data !")
-            self.gps_manager.ppk(cm, self.session.name)
-        else:
-            print("We cannot do PPK on our data at the moment !")
+            # Check if we can perform ppk.
+            if self.gps_manager.can_perform_ppk():
+                print("We can do PPK on our data !")
+                self.gps_manager.ppk(cm, self.session.name)
+            else:
+                print("We cannot do PPK on our data at the moment !")
 
-        if self.gps_manager.ppk_solution == None:
-            self.gps_manager.ppk_solution = self.gps_manager.device_LLH_filepath
+            if self.gps_manager.ppk_solution == None:
+                self.gps_manager.ppk_solution = self.gps_manager.device_LLH_filepath
 
-        # Get the final GPS file with or without PPK solution
-        if self.gps_manager.ppk_solution != None:
-            self.gps_manager.GPS_position_accuracy(self.session_info_path, self.gps_manager.ppk_solution, cm.is_rtkfix())
-        else:
-            raise NameError("No Navigation where found.")
-    
+            # Get the final GPS file with or without PPK solution
+            if self.gps_manager.ppk_solution != None:
+                self.gps_manager.GPS_position_accuracy(self.session_info_path, self.gps_manager.ppk_solution, cm.is_rtkfix())
+            else:
+                raise NameError("No Navigation where found.")
+
+        except:
+            print(traceback.format_exc(), end="\n\n")
+            print('\n--- WARNING ---')
+            print('Problem occurs when trying to process GPS ...')
+        print('Done ...')
     
     def compute_bathy(self, cm: ConfigManager) -> None:
 
@@ -192,7 +199,7 @@ class SessionBase:
 
         # Get metadata of frames
         with exiftool.ExifTool(common_args=["-n"]) as et:
-            json_frames_metadata = et.execute(*[f"-j", "-fileorder", "filename", str(self.pd_frames_path)])
+            json_frames_metadata = et.execute(*[f"-j", "-fileorder", "filename", str(self.image_manager.frame_path)])
 
         if json_frames_metadata == "":
             print("No frames to write metadata")
@@ -202,7 +209,7 @@ class SessionBase:
 
         # Get metadata of one video
         csv_exiftool_video = pd.DataFrame()
-        if self.dcim_path != self.pd_frames_path:
+        if self.dcim_path != self.image_manager.frame_path:
 
             if not Path.exists(self.dcim_path) or not self.dcim_path.is_dir() :
                 print("The following path does not exist : ", self.dcim_path)
@@ -363,10 +370,12 @@ class SessionBase:
 
         print("\n-- func : IMPORT EXIF METADATA\n")
 
-        texec = datetime.now()
-        with exiftool.ExifTool(common_args=[], config_file=str(cm.get_exiftool_metadata_path())) as et:
-            et.execute("-csv="+str(self.metadata_csv_path)," -fileorder filename", str(self.pd_frames_path), "-overwrite_original")
-        print("Writing metadata execution time: ", datetime.now() - texec)
+        # Only write metadata for frames split by the code else conserve the exif of original images.
+        if self.image_manager.dcim_type == DCIMType.VIDEO:
+            texec = datetime.now()
+            with exiftool.ExifTool(common_args=[], config_file=str(cm.get_exiftool_metadata_path())) as et:
+                et.execute("-csv="+str(self.metadata_csv_path)," -fileorder filename", str(self.image_manager.frame_path), "-overwrite_original")
+            print("Writing metadata execution time: ", datetime.now() - texec)
 
         # once we have imported all metadata, remove useless columns from metadata csv and rename GPS columns
         col_names = csv_exiftool_frames.columns
@@ -394,6 +403,17 @@ class SessionBase:
         csv_exiftool_frames.dropna(axis=1,inplace=True)
         # delete all zero columns
         csv_exiftool_frames = csv_exiftool_frames.loc[:, (csv_exiftool_frames != 0).any(axis=0)]
+        
+        # Rename images without the session_name inside
+        def rename_image_if_needed(filename) -> str:
+            if self.session.name in filename: return filename
+            new_filename = f"{self.session.name}_{filename}"
+
+            shutil.move(Path(self.image_manager.frame_path, filename), Path(self.image_manager.frame_path, new_filename))
+            return new_filename
+            
+        csv_exiftool_frames["FileName"] = csv_exiftool_frames["FileName"].apply(lambda x : rename_image_if_needed(x))
+
         # add relative path
         csv_exiftool_frames["relative_file_path"] = csv_exiftool_frames["FileName"].apply(lambda x : str(Path(self.image_manager.relative_file_path, x)))
         # sort metadata columns by name
