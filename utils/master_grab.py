@@ -37,6 +37,17 @@ def grab_pdf(session_path, output_folder):
     output_folder.mkdir(exist_ok=True, parents=True)
     shutil.copy(file_to_copy, Path(output_folder, file_to_copy.name))
 
+
+def grab_ortho(session_path, output_folder):
+    file_to_copy = Path(session_path, "PROCESSED_DATA", "PHOTOGRAMMETRY", "odm_orthophoto", "odm_orthophoto.tif")
+
+    if not Path.exists(file_to_copy):
+        print(f"Orthophoto file not found for session {session_path.name}")
+        return
+
+    output_folder.mkdir(exist_ok=True, parents=True)
+    shutil.copy(file_to_copy, Path(output_folder, f"{session_path.name}_ortho.tif"))
+
 def grab_jacques_predictions(session_path, output_folder, opt_place):
 
     folder_to_move = Path(output_folder, opt_place)
@@ -231,6 +242,7 @@ def parse_args():
     parser.add_argument("-m", "--metadata", action="store_true", help="Grab all metadata file")
     parser.add_argument("-pr", "--predictions_raster", action="store_true", help="Grab all predictions raster and store by class name")
     parser.add_argument("-f", "--frames", action="store_true", help="Reconstruct session with only frame and metadata")
+    parser.add_argument("-o", "--orthophoto", action="store_true", help="Grab orthophoto file")
 
     # Optional arguments.
     parser.add_argument("-is", "--index_start", default="0", help="Choose from which index to start")
@@ -255,6 +267,8 @@ def main(opt):
     jpgps_output = Path(output_folder, "JACQUES_PRED_GPS")
     metadata_output = Path(output_folder, "METADATA")
     predictions_output = Path(output_folder, "PREDICTIONS_RASTER")
+    ortho_output = Path(output_folder, "ORTHOPHOTO")
+
 
     # Stat
     sessions_fail = []
@@ -314,6 +328,9 @@ def main(opt):
 
             if opt.predictions_raster:
                 grab_predictions_raster(session_path, predictions_output, opt_place)
+            
+            if opt.orthophoto:
+                grab_ortho(session_path, ortho_output)
 
         except Exception:
             print(traceback.format_exc(), end="\n\n")
