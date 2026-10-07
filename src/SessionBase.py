@@ -18,6 +18,27 @@ from .enum.FolderType import FolderType
 from .lib.lib_bathy import bathy_preproc_to_txt
 from .lib.lib_tools import convert_datetime_to_datetime_unix, convert_datetime_unix_to_datetime
 
+# Columns sent to ExifTool -csv= when tagging frames. SourceFile selects the JPEG;
+# the rest are the GPS/IMU/datetime (and optional focal) tags we actually write.
+# Trimming the full read-metadata dump here is the main write speedup.
+_EXIFTOOL_WRITE_COLUMNS = (
+    "SourceFile",
+    "SubSecDateTimeOriginal",
+    "GPSLatitude",
+    "GPSLongitude",
+    "GPSPosition",
+    "GPSAltitude",
+    "GPSAltitudeRef",
+    "XMP:GPSRoll",
+    "XMP:GPSPitch",
+    "XMP:GPSTrack",
+    "EXIF:FocalLength",
+    "EXIF:FocalLengthIn35mmFormat",
+    "GPSfix",
+    "GPSsdn",
+    "GPSsde",
+)
+
 class SessionBase:
 
     def __init__(self, session_path: Path) -> None:
@@ -373,8 +394,22 @@ class SessionBase:
         # Only write metadata for frames split by the code else conserve the exif of original images.
         if self.image_manager.dcim_type == DCIMType.VIDEO:
             texec = datetime.now()
+            write_cols = [c for c in _EXIFTOOL_WRITE_COLUMNS if c in csv_exiftool_frames.columns]
+            if "SourceFile" not in write_cols:
+                raise RuntimeError("Cannot write frame metadata: SourceFile column missing from ExifTool CSV")
+            # Slim CSV for ExifTool only (full dump stays in metadata.csv until filtered below).
+            write_csv_path = Path(self.metadata_path, "metadata_exiftool_write.csv")
+            csv_exiftool_frames.loc[:, write_cols].to_csv(write_csv_path, index=False)
             with exiftool.ExifTool(common_args=[], config_file=str(cm.get_exiftool_metadata_path())) as et:
-                et.execute("-csv="+str(self.metadata_csv_path)," -fileorder filename", str(self.image_manager.frame_path), "-overwrite_original")
+                et.execute(
+                    "-csv=" + str(write_csv_path),
+                    "-fileorder", "filename",
+                    str(self.image_manager.frame_path),
+                    "-overwrite_original",
+                )
+                if et.last_status != 0:
+                    err = (et.last_stderr or "").strip() or "(no stderr)"
+                    raise RuntimeError(f"ExifTool metadata write failed (status={et.last_status}): {err}")
             print("Writing metadata execution time: ", datetime.now() - texec)
 
         # once we have imported all metadata, remove useless columns from metadata csv and rename GPS columns
