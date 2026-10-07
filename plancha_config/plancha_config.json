@@ -9,6 +9,8 @@
    "dcim": {
       "exiftool_config_path": "./exiftool_roll_pitch_config_file.config",
       "frames_per_second": "2997/1000",
+      "_NB": "Max concurrent ffmpeg jobs when splitting DCIM videos (1 = sequential; 2–4 is usually safe on HDD)",
+      "split_max_workers": 2,
       "leap_sec": "18",
       "_NB": "insert the date and time following the format YYYY:MM:DD HH:MM:SS.000",
       "_NB": "insert the time in UTC+0 format",

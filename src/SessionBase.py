@@ -106,7 +106,11 @@ class SessionBase:
     def split_videos(self, cm: ConfigManager) -> None:
         
         if not cm.can_split() or not self.image_manager.dcim_folder_is_video_folder() : return 
-        self.image_manager.split_videos(cm.is_only_split(), cm.get_frames_per_second())
+        self.image_manager.split_videos(
+            cm.is_only_split(),
+            cm.get_frames_per_second(),
+            cm.get_split_max_workers(),
+        )
     
 
     def remove_first_frames(self, cm: ConfigManager) -> None:
