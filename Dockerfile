@@ -1,8 +1,14 @@
 # Use an official Python runtime as a parent image
 FROM python:3.12-slim-bullseye
 
-# Install lib, create user.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Bullseye is past regular/LTS mirror life: live deb.debian.org security
+# indexes still list packages whose .debs 404. Point apt at archive.debian.org
+# so the existing package set keeps installing. Check-Valid-Until is off because
+# archived Release files are expired by design.
+RUN sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g' /etc/apt/sources.list \
+ && sed -i 's|http://deb.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list \
+ && printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99no-check-valid \
+ && apt-get update && apt-get install -y --no-install-recommends \
     wget ffmpeg libimage-exiftool-perl rtklib gdal-bin && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir \
