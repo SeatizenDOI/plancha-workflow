@@ -5,12 +5,27 @@ import pandas as pd
 from pathlib import Path
 from natsort import natsorted
 from datetime import datetime
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from .enum.DCIMType import DCIMType
 from .ConfigManager import ConfigManager
 
 VIDEO_EXTENSION = [".mp4"]
 IMAGE_EXTENSION = [".jpg", ".jpeg"]
+
+
+def _ffmpeg_split_video(video_path: str, output_pattern: str, fps: str) -> str | None:
+    """Extract frames from one MP4. Returns a traceback string on failure, else None."""
+    try:
+        (
+            ffmpeg.input(video_path)
+            .output(output_pattern, vf=f'fps={fps}', qmin=1, q='1', loglevel='quiet')
+            .run()
+        )
+        return None
+    except Exception:
+        return traceback.format_exc()
+
 
 class ImageManager:
 
@@ -86,36 +101,68 @@ class ImageManager:
         return self.dcim_type == DCIMType.VIDEO
     
 
-    def split_videos(self, split_only_first_video: bool, fps: str) -> None:
+    def split_videos(self, split_only_first_video: bool, fps: str, max_workers: int = 1) -> None:
+        """Split DCIM videos into JPEG frames (one ffmpeg process per video, optionally parallel)."""
 
-        count_video = 0
         print("\n-- SPLITTING VIDEOS INTO FRAMES:")
 
-        if len(list(self.frame_path.iterdir())) > 0: 
+        if len(list(self.frame_path.iterdir())) > 0:
             print("Videos already split in frames")
-            return        
+            return
+
+        videos = [
+            file for file in natsorted(list(self.dcim_path.iterdir()))
+            if file.suffix.lower() in VIDEO_EXTENSION
+        ]
+        if split_only_first_video:
+            videos = videos[:1]
+
+        if not videos:
+            print("No video files found in DCIM")
+            return
+
+        tasks: list[tuple[int, str, str, str]] = []
+        for count_video, file in enumerate(videos, start=1):
+            output_pattern = str(Path(self.frame_path, f"{self.session_name}_{count_video}_%03d.jpeg"))
+            tasks.append((count_video, str(file), output_pattern, fps))
+
+        workers = max(1, min(max_workers, len(tasks)))
+        if workers > 1:
+            print(f"\t* {len(tasks)} video(s), up to {workers} parallel ffmpeg job(s)")
 
         texec = datetime.now()
-        # for each file in the videos folder
-        for file in natsorted(list(self.dcim_path.iterdir())):
-            if file.suffix.lower() not in VIDEO_EXTENSION: continue
+        failures: list[tuple[str, str]] = []
 
-            # increase the count video in order to differentiate between different videos of same session
-            count_video += 1
-            print("\t* We are treating the following file : ", file.name)
+        def run_one(count_video: int, video_path: str, output_pattern: str, fps: str) -> None:
+            name = Path(video_path).name
+            print("\t* We are treating the following file : ", name)
+            err = _ffmpeg_split_video(video_path, output_pattern, fps)
+            if err:
+                print(err, end="\n\n")
+                failures.append((name, err))
 
-            # Define the ffmpeg command
-            try:
-                output_pattern = Path(self.frame_path, f"{self.session_name}_{count_video}_%03d.jpeg")  # Output pattern for the frames
-                (
-                    ffmpeg.input(str(file))
-                    .output(str(output_pattern), vf=f'fps={fps}', qmin=1, q='1', loglevel='quiet') # Set output pattern, frame rate filter, quality parameters, and logging level
-                    .run()  # Run the ffmpeg command
-                )
-            except Exception:
-                print(traceback.format_exc(), end="\n\n")
+        if workers == 1:
+            for task in tasks:
+                run_one(*task)
+        else:
+            with ProcessPoolExecutor(max_workers=workers) as pool:
+                future_to_name = {
+                    pool.submit(_ffmpeg_split_video, video_path, output_pattern, fps): Path(video_path).name
+                    for _idx, video_path, output_pattern, fps in tasks
+                }
+                for count_video, video_path, output_pattern, fps in tasks:
+                    print("\t* We are treating the following file : ", Path(video_path).name)
 
-            if split_only_first_video: break
+                for future in as_completed(future_to_name):
+                    name = future_to_name[future]
+                    err = future.result()
+                    if err:
+                        print(f"\t* ffmpeg failed for {name}\n{err}", end="\n\n")
+                        failures.append((name, err))
+
+        if failures:
+            failed_names = ", ".join(name for name, _ in failures)
+            raise RuntimeError(f"Video split failed for {len(failures)} file(s): {failed_names}")
 
         print(f"\nfunc: exec time --> {datetime.now() - texec} sec")
         print("End of splitting videos\n")

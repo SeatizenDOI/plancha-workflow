@@ -20,6 +20,7 @@ def parse_option() -> Namespace:
     parser.add_argument("-rp", "--root_path", default=None, help="Root path for the session")
     parser.add_argument("-rf", "--remove_frames", default=None, help="Remove frames until meet the number")
     parser.add_argument("-pcn", "--plancha_config_path", default=None, help="Path to the plancha config file to use")
+    parser.add_argument("-sw", "--split-workers", default=None, type=int, help="Max parallel ffmpeg jobs for video split (overrides plancha config dcim.split_max_workers)")
 
 
     return parser.parse_args()

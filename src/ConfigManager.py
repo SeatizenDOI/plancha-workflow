@@ -60,6 +60,7 @@ class ConfigManager:
 
         # Frame per second.
         self.default_args["frames_per_second"] = self.cfg_prog['dcim']['frames_per_second']
+        self.default_args["split_max_workers"] = int(self.cfg_prog['dcim'].get('split_max_workers', 2))
 
 
     def build_sessions_to_process(self) -> None:
@@ -186,6 +187,11 @@ class ConfigManager:
 
     def get_frames_per_second(self) -> str:
         return self.cfg_prog["dcim"]["frames_per_second"]
+
+    def get_split_max_workers(self) -> int:
+        if self.opt.split_workers is not None:
+            return max(1, int(self.opt.split_workers))
+        return max(1, int(self.cfg_prog["dcim"].get("split_max_workers", self.default_args["split_max_workers"])))
     
     def get_time_first_frame(self) -> str:
         # N.B. insert the date and time following the format "YYYY:MM:DD HH:MM:SS.000"
